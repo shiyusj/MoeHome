@@ -1,7 +1,13 @@
 <?php
 /**
  * MoeHome 虚拟主机版 - 首页
- * 版本 v4.0 - CMS 内容管理系统
+ * 优化版本 v2.0
+ *
+ * 性能优化:
+ * - GZIP 输出压缩
+ * - Etag 缓存
+ * - 优化模板编译
+ * - 减少字符串拼接
  */
 
 declare(strict_types=1);
@@ -21,7 +27,7 @@ if (is_file($configFile)) {
 
 ob_start();
 
-$cacheVersion = 'v4.0';
+$cacheVersion = 'v2.0';
 
 $site = $config['site'] ?? [];
 $seo = $config['seo'] ?? [];
@@ -29,6 +35,9 @@ $profile = $config['profile'] ?? [];
 $theme = $config['theme'] ?? [];
 $music = $config['music'] ?? [];
 $terminal = $config['terminal'] ?? [];
+$rss = $config['rss'] ?? [];
+$projects = $config['projects'] ?? [];
+$contribution = $config['contribution'] ?? [];
 $moments = $config['moments'] ?? [];
 $guestbook = $config['guestbook'] ?? [];
 $linksConfig = $config['linksConfig'] ?? [];
@@ -122,76 +131,85 @@ HTML;
     $musicHtml = '<hr class="section-divider">';
 }
 
-$articlesHtml = <<<HTML
-    <section class="section articles-section lazy-load" data-delay="4">
-        <div class="section-header">
-            <h2 class="section-title">
-                <i class="fa-solid fa-newspaper"></i>
-                <span>博客精选</span>
-                <span class="section-count" id="articles-count"></span>
-            </h2>
-        </div>
-        <div class="articles-list" id="articles-list">
-            <div class="articles-loading">
-                <i class="fas fa-spinner fa-spin"></i>
-                <span>加载中...</span>
-            </div>
-        </div>
-    </section>
-HTML;
+$rssEnabled = (bool)($rss['enabled'] ?? false);
+$rssHtml = '';
 
-$activityHtml = <<<HTML
-    <section class="section activity-section lazy-load" data-delay="5">
-        <div class="section-header">
-            <h2 class="section-title">
-                <i class="fa-solid fa-chart-line"></i>
-                <span>贡献活跃度</span>
-            </h2>
-        </div>
-        <div class="activity-container" id="activity-container">
-            <div class="activity-loading">
-                <i class="fas fa-spinner fa-spin"></i>
-                <span>加载中...</span>
-            </div>
-        </div>
-    </section>
-HTML;
+if ($rssEnabled) {
+    $rssUrl = urlencode($rss['url'] ?? '');
+    $rssCount = intval($rss['count'] ?? 4);
+    $rssTitle = htmlspecialchars($rss['title']['text'] ?? 'Recent Posts', ENT_QUOTES, 'UTF-8');
+    $rssIcon = htmlspecialchars($rss['title']['icon'] ?? 'fa-solid fa-newspaper', ENT_QUOTES, 'UTF-8');
+    $rssShowDate = (($rss['display']['showDate'] ?? true) ? 'true' : 'false');
+    $rssShowDesc = (($rss['display']['showDescription'] ?? true) ? 'true' : 'false');
+    $rssMaxDescLen = intval($rss['display']['maxDescriptionLength'] ?? 100);
+    $rssOpenNewTab = (($rss['openInNewTab'] ?? true) ? 'target="_blank" rel="noopener"' : '');
 
-$projectsHtml = <<<HTML
-    <section class="section projects-section lazy-load" data-delay="6">
-        <div class="section-header">
-            <h2 class="section-title">
-                <i class="fa-solid fa-folder-open"></i>
-                <span>我的项目</span>
-                <span class="section-count" id="projects-count"></span>
-            </h2>
-        </div>
-        <div class="projects-container" id="projects-container">
-            <div class="projects-loading">
-                <i class="fas fa-spinner fa-spin"></i>
-                <span>加载中...</span>
+    $rssHtml = <<<HTML
+        <section class="section rss-section lazy-load" data-delay="4">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="{$rssIcon}"></i>
+                    <span>{$rssTitle}</span>
+                </h2>
             </div>
-        </div>
-    </section>
+            <div class="rss-list" id="rss-list" data-url="{$rssUrl}" data-count="{$rssCount}" data-show-date="{$rssShowDate}" data-show-description="{$rssShowDesc}" data-max-description-length="{$rssMaxDescLen}" data-open-new-tab="{$rssOpenNewTab}">
+                <div class="rss-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>加载中...</span>
+                </div>
+            </div>
+        </section>
 HTML;
+}
 
-$momentsPreviewHtml = <<<HTML
-    <section class="section moments-preview-section lazy-load" data-delay="7">
-        <div class="section-header">
-            <h2 class="section-title">
-                <i class="fa-solid fa-bolt"></i>
-                <span>博客动态</span>
-                <a href="moments.php" class="section-link">查看全部</a>
-            </h2>
-        </div>
-        <div class="moments-preview" id="moments-preview">
-            <div class="moments-loading">
-                <i class="fas fa-spinner fa-spin"></i>
-                <span>加载中...</span>
+$projectsEnabled = (bool)($projects['enabled'] ?? false);
+$projectsHtml = '';
+$githubUsername = '';
+
+if ($projectsEnabled) {
+    $githubUser = htmlspecialchars($projects['githubUser'] ?? '', ENT_QUOTES, 'UTF-8');
+    $githubUsername = preg_replace('#^https?://github\.com/?#', '', rtrim($githubUser, '/'));
+    $projectsCount = intval($projects['count'] ?? 5);
+    $projectsExclude = htmlspecialchars(implode(',', $projects['exclude'] ?? []), ENT_QUOTES, 'UTF-8');
+    $projectsTitle = htmlspecialchars($projects['title']['text'] ?? '我的项目', ENT_QUOTES, 'UTF-8');
+    $projectsIcon = htmlspecialchars($projects['title']['icon'] ?? 'fa-solid fa-folder-open', ENT_QUOTES, 'UTF-8');
+
+    $projectsHtml = <<<HTML
+        <section class="section projects-section lazy-load" data-delay="5">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="{$projectsIcon}"></i>
+                    <span>{$projectsTitle}</span>
+                </h2>
+                <a href="{$githubUser}" class="section-more" target="_blank" rel="noopener noreferrer">
+                    <span>查看更多</span>
+                    <i class="fas fa-external-link-alt"></i>
+                </a>
             </div>
-        </div>
-    </section>
+            <div class="projects-grid" id="projects-grid" data-username="{$githubUsername}" data-count="{$projectsCount}" data-exclude="{$projectsExclude}">
+                <div class="projects-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>加载中...</span>
+                </div>
+            </div>
+        </section>
 HTML;
+}
+
+$contributionEnabled = (bool)($contribution['enabled'] ?? false);
+$contributionHtml = '';
+
+if ($contributionEnabled) {
+    $contributionUser = htmlspecialchars(($contribution['githubUser'] ?: $githubUsername), ENT_QUOTES, 'UTF-8');
+    $useRealData = (($contribution['useRealData'] ?? true) ? 'true' : 'false');
+    $currentYear = intval(date('Y'));
+
+    $contributionHtml = <<<HTML
+        <section class="section contribution-section">
+            <div class="contribution-calendar" id="contribution-calendar" data-username="{$contributionUser}" data-real="{$useRealData}" data-year="{$currentYear}"></div>
+        </section>
+HTML;
+}
 
 $linksEnabled = (bool)($linksConfig['enabled'] ?? false);
 $linksHtml = '';
@@ -233,7 +251,7 @@ HTML;
     }
 
     $linksHtml = <<<HTML
-        <section class="section links-section lazy-load" data-delay="8">
+        <section class="section links-section lazy-load" data-delay="6">
             <div class="section-header">
                 <h2 class="section-title">
                     <i class="{$linksIcon}"></i>
@@ -290,7 +308,7 @@ HTML;
     }
 
     $donationHtml = <<<HTML
-        <section class="section donation-section lazy-load" data-delay="9">
+        <section class="section donation-section lazy-load" data-delay="7">
             <div class="donation-header">
                 <h2 class="section-title">
                     <i class="{$donationIcon}"></i>
@@ -329,7 +347,7 @@ if ($noticeEnabled) {
     $noticeText = htmlspecialchars($notice['text'] ?? '', ENT_QUOTES, 'UTF-8');
 
     $noticeHtml = <<<HTML
-        <div class="notice notice-{$noticeType} lazy-load" data-delay="10" role="alert">
+        <div class="notice notice-{$noticeType} lazy-load" data-delay="8" role="alert">
             <i class="{$noticeIcon}"></i>
             <span>{$noticeText}</span>
         </div>
@@ -351,10 +369,8 @@ HTML;
 }
 
 $skeletonMusic = $musicEnabled ? '<div class="skeleton-music skeleton"></div>' : '';
-$skeletonArticles = '<div class="skeleton-articles skeleton"></div>';
-$skeletonActivity = '<div class="skeleton-activity skeleton"></div>';
-$skeletonProjects = '<div class="skeleton-projects skeleton"></div>';
-$skeletonMoments = '<div class="skeleton-moments skeleton"></div>';
+$skeletonRss = $rssEnabled ? '<div class="skeleton-rss skeleton"></div>' : '';
+$skeletonProjects = $projectsEnabled ? '<div class="skeleton-projects skeleton"></div>' : '';
 $skeletonLinks = $linksEnabled ? '<div class="skeleton-links skeleton"></div>' : '';
 $skeletonDonation = $donationEnabled ? '<div class="skeleton-donation skeleton"></div>' : '';
 $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>' : '';
@@ -523,10 +539,8 @@ if ($guestbook['enabled'] ?? false) {
                 <div class="skeleton-tagline skeleton"></div>
                 <?php echo $skeletonMusic; ?>
                 <div class="skeleton-terminal skeleton"></div>
-                <?php echo $skeletonArticles; ?>
-                <?php echo $skeletonActivity; ?>
+                <?php echo $skeletonRss; ?>
                 <?php echo $skeletonProjects; ?>
-                <?php echo $skeletonMoments; ?>
                 <?php echo $skeletonLinks; ?>
                 <?php echo $skeletonDonation; ?>
                 <?php echo $skeletonNotice; ?>
@@ -580,10 +594,9 @@ if ($guestbook['enabled'] ?? false) {
                     </div>
                 </div>
 
-                <?php echo $articlesHtml; ?>
-                <?php echo $activityHtml; ?>
+                <?php echo $contributionHtml; ?>
+                <?php echo $rssHtml; ?>
                 <?php echo $projectsHtml; ?>
-                <?php echo $momentsPreviewHtml; ?>
                 <?php echo $linksHtml; ?>
                 <?php echo $donationHtml; ?>
                 <?php echo $noticeHtml; ?>
@@ -610,7 +623,6 @@ if ($guestbook['enabled'] ?? false) {
         <script src="theme-data.js" defer></script>
         <script src="theme-utils.js" defer></script>
         <script src="app.js" defer></script>
-        <script src="cms.js" defer></script>
     </body>
 </html>
 <?php
