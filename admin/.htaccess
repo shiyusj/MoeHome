@@ -1,0 +1,78 @@
+# MoeHome 管理后台 - Apache 安全配置
+
+# 启用 URL 重写
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /admin/
+
+    # 强制登录页面使用 HTTPS (取消注释以启用)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^login\.php$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# 安全头部
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set X-Robots-Tag "noindex, nofollow"
+
+    # 禁止 iframe 嵌入
+    Header always append X-Frame-Options "SAMEORIGIN"
+</IfModule>
+
+# 禁止访问敏感文件
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 禁止直接访问配置文件
+<FilesMatch "\.(config\.php|config\.example\.php)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 禁止访问日志和备份文件
+<FilesMatch "\.(log|sql|bak|backup)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 禁止目录浏览
+Options -Indexes
+
+# PHP 配置 - 限制性设置
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 2M
+    php_value post_max_size 4M
+    php_value max_execution_time 30
+    php_value memory_limit 64M
+    php_value session.cookie_httponly 1
+    php_value session.cookie_secure 1
+    php_value session.use_strict_mode 1
+    php_flag display_errors off
+</IfModule>
+
+<IfModule mod_php.c>
+    php_value upload_max_filesize 2M
+    php_value post_max_size 4M
+    php_value max_execution_time 30
+    php_value memory_limit 64M
+    php_value session.cookie_httponly 1
+    php_value session.cookie_secure 1
+    php_value session.use_strict_mode 1
+    php_flag display_errors off
+</IfModule>
+
+# GZIP 压缩
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/json
+</IfModule>
+
+# 设置默认字符集
+AddDefaultCharset UTF-8

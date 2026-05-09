@@ -79,7 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     `role` ENUM('admin', 'editor') DEFAULT 'admin',
                     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
                     `last_login` DATETIME,
-                    INDEX `idx_username` (`username`)
+                    INDEX `idx_username` (`username`),
+                    INDEX `idx_email` (`email`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
                 CREATE TABLE IF NOT EXISTS `moehome_config` (
@@ -102,6 +103,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     `last_attempt` DATETIME DEFAULT CURRENT_TIMESTAMP,
                     INDEX `idx_ip` (`ip`),
                     INDEX `idx_locked_until` (`locked_until`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `moehome_password_resets` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `email` VARCHAR(100) NOT NULL,
+                    `token` VARCHAR(64) NOT NULL,
+                    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    `expires_at` DATETIME NOT NULL,
+                    `ip` VARCHAR(45) NOT NULL,
+                    INDEX `idx_email` (`email`),
+                    INDEX `idx_token` (`token`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
                 ";
 

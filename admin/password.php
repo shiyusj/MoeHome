@@ -1,6 +1,6 @@
 <?php
 /**
- * MoeHome 后台管理 - 修改密码
+ * MoeHome 后台管理 - 修改密码和邮箱
  */
 
 declare(strict_types=1);
@@ -21,40 +21,65 @@ requireLogin();
 $csrfToken = getCsrfToken();
 $message = '';
 $messageType = '';
+$userEmail = '';
+$currentUser = getCurrentUser();
+if ($currentUser) {
+    $userEmail = $currentUser['email'] ?? '';
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrfToken($_POST['csrf_token'] ?? '')) {
-    $currentPassword = $_POST['current_password'] ?? '';
-    $newPassword = $_POST['new_password'] ?? '';
-    $confirmPassword = $_POST['confirm_password'] ?? '';
-
-    if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
-        $message = '请填写所有字段';
-        $messageType = 'error';
-    } elseif ($newPassword !== $confirmPassword) {
-        $message = '两次输入的新密码不一致';
-        $messageType = 'error';
-    } elseif (strlen($newPassword) < 6) {
-        $message = '新密码长度至少 6 位';
-        $messageType = 'error';
-    } else {
-        $user = Database::fetchOne(
-            "SELECT password FROM moehome_users WHERE id = :id",
-            [':id' => $_SESSION['admin_id']]
-        );
-
-        if (!$user || !password_verify($currentPassword, $user['password'])) {
-            $message = '当前密码错误';
+    if (isset($_POST['update_email'])) {
+        $newEmail = trim($_POST['email'] ?? '');
+        if (empty($newEmail)) {
+            $message = '请输入邮箱地址';
+            $messageType = 'error';
+        } elseif (!filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
+            $message = '请输入有效的邮箱地址';
             $messageType = 'error';
         } else {
-            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
             Database::update('moehome_users',
-                ['password' => $hashedPassword],
+                ['email' => $newEmail],
                 'id = :id',
                 [':id' => $_SESSION['admin_id']]
             );
-
-            $message = '密码修改成功';
+            $userEmail = $newEmail;
+            $message = '邮箱更新成功';
             $messageType = 'success';
+        }
+    } elseif (isset($_POST['update_password'])) {
+        $currentPassword = $_POST['current_password'] ?? '';
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
+            $message = '请填写所有字段';
+            $messageType = 'error';
+        } elseif ($newPassword !== $confirmPassword) {
+            $message = '两次输入的新密码不一致';
+            $messageType = 'error';
+        } elseif (strlen($newPassword) < 6) {
+            $message = '新密码长度至少 6 位';
+            $messageType = 'error';
+        } else {
+            $user = Database::fetchOne(
+                "SELECT password FROM moehome_users WHERE id = :id",
+                [':id' => $_SESSION['admin_id']]
+            );
+
+            if (!$user || !password_verify($currentPassword, $user['password'])) {
+                $message = '当前密码错误';
+                $messageType = 'error';
+            } else {
+                $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+                Database::update('moehome_users',
+                    ['password' => $hashedPassword],
+                    'id = :id',
+                    [':id' => $_SESSION['admin_id']]
+                );
+
+                $message = '密码修改成功';
+                $messageType = 'success';
+            }
         }
     }
 }
@@ -64,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrfToken($_POST['csrf_token'
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>修改密码 - MoeHome 管理后台</title>
+    <title>账户安全 - MoeHome 管理后台</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -79,8 +104,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrfToken($_POST['csrf_token'
         <main class="main-content">
             <header class="topbar">
                 <h1 class="topbar-title">
-                    <i class="fas fa-key"></i>
-                    修改密码
+                    <i class="fas fa-shield-alt"></i>
+                    账户安全
                 </h1>
                 <div class="topbar-actions">
                     <button class="btn btn-secondary btn-sm" data-theme-toggle>
@@ -97,11 +122,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrfToken($_POST['csrf_token'
                 </div>
                 <?php endif; ?>
 
-                <div class="card fade-in" style="max-width: 500px;">
+                <div class="card fade-in">
                     <div class="card-header">
                         <h2 class="card-title">
-                            <i class="fas fa-lock"></i>
-                            账户安全
+                            <i class="fas fa-envelope"></i>
+                            邮箱设置
                         </h2>
                     </div>
 
@@ -109,6 +134,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrfToken($_POST['csrf_token'
                         <div class="terminal-body" style="padding: 0;">
                             <form method="POST" action="">
                                 <input type="hidden" name="csrf_token" value="<?php echo h($csrfToken); ?>" />
+                                <input type="hidden" name="update_email" value="1" />
+
+                                <div class="form-group">
+                                    <label class="form-label" for="email">登录邮箱</label>
+                                    <input type="email" id="email" name="email" class="form-input" value="<?php echo h($userEmail); ?>" placeholder="admin@example.com" />
+                                    <div class="form-hint">
+                                        <i class="fas fa-info-circle"></i>
+                                        用于找回密码，请确保邮箱可正常接收邮件
+                                    </div>
+                                </div>
+
+                                <div style="margin-top: 20px;">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i>
+                                        保存邮箱
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card fade-in">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i class="fas fa-key"></i>
+                            修改密码
+                        </h2>
+                    </div>
+
+                    <div class="terminal-window" style="margin: 0; border: none;">
+                        <div class="terminal-body" style="padding: 0;">
+                            <form method="POST" action="">
+                                <input type="hidden" name="csrf_token" value="<?php echo h($csrfToken); ?>" />
+                                <input type="hidden" name="update_password" value="1" />
 
                                 <div class="form-group">
                                     <label class="form-label" for="current_password">当前密码</label>
@@ -145,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrfToken($_POST['csrf_token'
                                 </div>
 
                                 <div style="margin-top: 24px;">
-                                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                                    <button type="submit" class="btn btn-primary">
                                         <i class="fas fa-save"></i>
                                         保存新密码
                                     </button>
@@ -155,10 +215,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrfToken($_POST['csrf_token'
                     </div>
                 </div>
 
-                <div class="card fade-in" style="max-width: 500px;">
+                <div class="card fade-in">
                     <div class="card-header">
                         <h2 class="card-title">
-                            <i class="fas fa-shield-alt"></i>
+                            <i class="fas fa-lightbulb"></i>
                             安全建议
                         </h2>
                     </div>
@@ -179,6 +239,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrfToken($_POST['csrf_token'
                         <li style="padding: 8px 0; display: flex; align-items: center; gap: 10px;">
                             <i class="fas fa-check-circle" style="color: var(--success);"></i>
                             不要在公共电脑上保存密码
+                        </li>
+                        <li style="padding: 8px 0; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                            确保邮箱可正常接收邮件，以便找回密码
                         </li>
                     </ul>
                 </div>
