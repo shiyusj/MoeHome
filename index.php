@@ -122,7 +122,7 @@ $postsHtml = '';
 
 if ($postsEnabled) {
     $postsCount = intval($posts['count'] ?? 4);
-    $postsTitle = htmlspecialchars($posts['title']['text'] ?? 'Recent Posts', ENT_QUOTES, 'UTF-8');
+    $postsTitle = htmlspecialchars($posts['title']['text'] ?? '近期更新', ENT_QUOTES, 'UTF-8');
     $postsIcon = htmlspecialchars($posts['title']['icon'] ?? 'fa-solid fa-newspaper', ENT_QUOTES, 'UTF-8');
 
     $postsHtml = <<<HTML
@@ -131,6 +131,10 @@ if ($postsEnabled) {
                 <h2 class="section-title">
                     <i class="{$postsIcon}"></i>
                     <span>{$postsTitle}</span>
+                    <a href="posts/" class="view-all" title="查看全部文章">
+                        <span>{$postsCount} posts</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
                 </h2>
             </div>
             <div class="posts-list" id="posts-list" data-count="{$postsCount}">
@@ -415,6 +419,7 @@ $copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTE
                 </a>
                 <div class="navbar-menu" id="navbar-menu">
                     <a href="index.php" class="nav-link active">首页</a>
+                    <a href="posts/" class="nav-link">博客</a>
                 </div>
                 <div class="navbar-actions">
                     <button class="nav-theme-toggle" id="theme-toggle" aria-label="切换主题">
@@ -445,6 +450,7 @@ $copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTE
 
         <div class="nav-mobile-dropdown" id="nav-mobile-dropdown">
             <a href="index.php" class="nav-link active">首页</a>
+            <a href="posts/" class="nav-link">博客</a>
         </div>
 
         <div class="container">
