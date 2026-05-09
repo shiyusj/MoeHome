@@ -1,10 +1,7 @@
 <?php
 /**
  * MoeHome 虚拟主机版 - 首页
- * 版本 v3.0
- *
- * 新增模块: 图库、花架、哔哩哔哩
- * 移除模块: GitHub项目、贡献图谱
+ * 版本 v4.0 - CMS 内容管理系统
  */
 
 declare(strict_types=1);
@@ -24,7 +21,7 @@ if (is_file($configFile)) {
 
 ob_start();
 
-$cacheVersion = 'v3.0';
+$cacheVersion = 'v4.0';
 
 $site = $config['site'] ?? [];
 $seo = $config['seo'] ?? [];
@@ -32,12 +29,8 @@ $profile = $config['profile'] ?? [];
 $theme = $config['theme'] ?? [];
 $music = $config['music'] ?? [];
 $terminal = $config['terminal'] ?? [];
-$rss = $config['rss'] ?? [];
 $moments = $config['moments'] ?? [];
 $guestbook = $config['guestbook'] ?? [];
-$gallery = $config['gallery'] ?? [];
-$books = $config['books'] ?? [];
-$bilibili = $config['bilibili'] ?? [];
 $linksConfig = $config['linksConfig'] ?? [];
 $links = $config['links'] ?? [];
 $donation = $config['donation'] ?? [];
@@ -129,117 +122,76 @@ HTML;
     $musicHtml = '<hr class="section-divider">';
 }
 
-$rssEnabled = (bool)($rss['enabled'] ?? false);
-$rssHtml = '';
-
-if ($rssEnabled) {
-    $rssUrl = urlencode($rss['url'] ?? '');
-    $rssCount = intval($rss['count'] ?? 4);
-    $rssTitle = htmlspecialchars($rss['title']['text'] ?? 'Recent Posts', ENT_QUOTES, 'UTF-8');
-    $rssIcon = htmlspecialchars($rss['title']['icon'] ?? 'fa-solid fa-newspaper', ENT_QUOTES, 'UTF-8');
-    $rssShowDate = (($rss['display']['showDate'] ?? true) ? 'true' : 'false');
-    $rssShowDesc = (($rss['display']['showDescription'] ?? true) ? 'true' : 'false');
-    $rssMaxDescLen = intval($rss['display']['maxDescriptionLength'] ?? 100);
-    $rssOpenNewTab = (($rss['openInNewTab'] ?? true) ? 'target="_blank" rel="noopener"' : '');
-
-    $rssHtml = <<<HTML
-        <section class="section rss-section lazy-load" data-delay="4">
-            <div class="section-header">
-                <h2 class="section-title">
-                    <i class="{$rssIcon}"></i>
-                    <span>{$rssTitle}</span>
-                </h2>
+$articlesHtml = <<<HTML
+    <section class="section articles-section lazy-load" data-delay="4">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fa-solid fa-newspaper"></i>
+                <span>博客精选</span>
+                <span class="section-count" id="articles-count"></span>
+            </h2>
+        </div>
+        <div class="articles-list" id="articles-list">
+            <div class="articles-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>加载中...</span>
             </div>
-            <div class="rss-list" id="rss-list" data-url="{$rssUrl}" data-count="{$rssCount}" data-show-date="{$rssShowDate}" data-show-description="{$rssShowDesc}" data-max-description-length="{$rssMaxDescLen}" data-open-new-tab="{$rssOpenNewTab}">
-                <div class="rss-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>加载中...</span>
-                </div>
-            </div>
-        </section>
+        </div>
+    </section>
 HTML;
-}
 
-$galleryEnabled = (bool)($gallery['enabled'] ?? false);
-$galleryHtml = '';
-
-if ($galleryEnabled) {
-    $galleryTitle = htmlspecialchars($gallery['title']['text'] ?? '我的图库', ENT_QUOTES, 'UTF-8');
-    $galleryIcon = htmlspecialchars($gallery['title']['icon'] ?? 'fa-solid fa-images', ENT_QUOTES, 'UTF-8');
-    $gallerySource = htmlspecialchars($gallery['source'] ?? 'local', ENT_QUOTES, 'UTF-8');
-    $galleryCount = intval($gallery['count'] ?? 8);
-
-    $galleryHtml = <<<HTML
-        <section class="section gallery-section lazy-load" data-delay="5">
-            <div class="section-header">
-                <h2 class="section-title">
-                    <i class="{$galleryIcon}"></i>
-                    <span>{$galleryTitle}</span>
-                </h2>
+$activityHtml = <<<HTML
+    <section class="section activity-section lazy-load" data-delay="5">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>贡献活跃度</span>
+            </h2>
+        </div>
+        <div class="activity-container" id="activity-container">
+            <div class="activity-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>加载中...</span>
             </div>
-            <div class="gallery-grid" id="gallery-grid" data-source="{$gallerySource}" data-count="{$galleryCount}">
-                <div class="gallery-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>加载中...</span>
-                </div>
-            </div>
-        </section>
+        </div>
+    </section>
 HTML;
-}
 
-$booksEnabled = (bool)($books['enabled'] ?? false);
-$booksHtml = '';
-
-if ($booksEnabled) {
-    $booksTitle = htmlspecialchars($books['title']['text'] ?? '书架', ENT_QUOTES, 'UTF-8');
-    $booksIcon = htmlspecialchars($books['title']['icon'] ?? 'fa-solid fa-book', ENT_QUOTES, 'UTF-8');
-    $booksCount = intval($books['count'] ?? 6);
-    $booksUserId = htmlspecialchars($books['doubanId'] ?? '', ENT_QUOTES, 'UTF-8');
-
-    $booksHtml = <<<HTML
-        <section class="section books-section lazy-load" data-delay="6">
-            <div class="section-header">
-                <h2 class="section-title">
-                    <i class="{$booksIcon}"></i>
-                    <span>{$booksTitle}</span>
-                </h2>
+$projectsHtml = <<<HTML
+    <section class="section projects-section lazy-load" data-delay="6">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fa-solid fa-folder-open"></i>
+                <span>我的项目</span>
+                <span class="section-count" id="projects-count"></span>
+            </h2>
+        </div>
+        <div class="projects-container" id="projects-container">
+            <div class="projects-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>加载中...</span>
             </div>
-            <div class="books-grid" id="books-grid" data-count="{$booksCount}" data-user-id="{$booksUserId}">
-                <div class="books-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>加载中...</span>
-                </div>
-            </div>
-        </section>
+        </div>
+    </section>
 HTML;
-}
 
-$bilibiliEnabled = (bool)($bilibili['enabled'] ?? false);
-$bilibiliHtml = '';
-
-if ($bilibiliEnabled) {
-    $bilibiliTitle = htmlspecialchars($bilibili['title']['text'] ?? '哔哩哔哩', ENT_QUOTES, 'UTF-8');
-    $bilibiliIcon = htmlspecialchars($bilibili['title']['icon'] ?? 'fa-brands fa-bilibili', ENT_QUOTES, 'UTF-8');
-    $bilibiliUid = htmlspecialchars($bilibili['uid'] ?? '', ENT_QUOTES, 'UTF-8');
-    $bilibiliCount = intval($bilibili['count'] ?? 4);
-
-    $bilibiliHtml = <<<HTML
-        <section class="section bilibili-section lazy-load" data-delay="7">
-            <div class="section-header">
-                <h2 class="section-title">
-                    <i class="{$bilibiliIcon}"></i>
-                    <span>{$bilibiliTitle}</span>
-                </h2>
+$momentsPreviewHtml = <<<HTML
+    <section class="section moments-preview-section lazy-load" data-delay="7">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fa-solid fa-bolt"></i>
+                <span>博客动态</span>
+                <a href="moments.php" class="section-link">查看全部</a>
+            </h2>
+        </div>
+        <div class="moments-preview" id="moments-preview">
+            <div class="moments-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>加载中...</span>
             </div>
-            <div class="bilibili-grid" id="bilibili-grid" data-uid="{$bilibiliUid}" data-count="{$bilibiliCount}">
-                <div class="bilibili-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>加载中...</span>
-                </div>
-            </div>
-        </section>
+        </div>
+    </section>
 HTML;
-}
 
 $linksEnabled = (bool)($linksConfig['enabled'] ?? false);
 $linksHtml = '';
@@ -399,10 +351,10 @@ HTML;
 }
 
 $skeletonMusic = $musicEnabled ? '<div class="skeleton-music skeleton"></div>' : '';
-$skeletonRss = $rssEnabled ? '<div class="skeleton-rss skeleton"></div>' : '';
-$skeletonGallery = $galleryEnabled ? '<div class="skeleton-gallery skeleton"></div>' : '';
-$skeletonBooks = $booksEnabled ? '<div class="skeleton-books skeleton"></div>' : '';
-$skeletonBilibili = $bilibiliEnabled ? '<div class="skeleton-bilibili skeleton"></div>' : '';
+$skeletonArticles = '<div class="skeleton-articles skeleton"></div>';
+$skeletonActivity = '<div class="skeleton-activity skeleton"></div>';
+$skeletonProjects = '<div class="skeleton-projects skeleton"></div>';
+$skeletonMoments = '<div class="skeleton-moments skeleton"></div>';
 $skeletonLinks = $linksEnabled ? '<div class="skeleton-links skeleton"></div>' : '';
 $skeletonDonation = $donationEnabled ? '<div class="skeleton-donation skeleton"></div>' : '';
 $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>' : '';
@@ -506,9 +458,6 @@ if ($guestbook['enabled'] ?? false) {
                 'identity'=>$identity,
                 'interests'=>$interests,
                 'quotes'=>$quotes,
-                'gallery'=>$gallery,
-                'books'=>$books,
-                'bilibili'=>$bilibili,
                 'animation'=>[
                     'typingSpeed'=>$typingSpeed,
                     'quoteDisplayTime'=>$quoteDisplayTime,
@@ -574,10 +523,10 @@ if ($guestbook['enabled'] ?? false) {
                 <div class="skeleton-tagline skeleton"></div>
                 <?php echo $skeletonMusic; ?>
                 <div class="skeleton-terminal skeleton"></div>
-                <?php echo $skeletonRss; ?>
-                <?php echo $skeletonGallery; ?>
-                <?php echo $skeletonBooks; ?>
-                <?php echo $skeletonBilibili; ?>
+                <?php echo $skeletonArticles; ?>
+                <?php echo $skeletonActivity; ?>
+                <?php echo $skeletonProjects; ?>
+                <?php echo $skeletonMoments; ?>
                 <?php echo $skeletonLinks; ?>
                 <?php echo $skeletonDonation; ?>
                 <?php echo $skeletonNotice; ?>
@@ -631,10 +580,10 @@ if ($guestbook['enabled'] ?? false) {
                     </div>
                 </div>
 
-                <?php echo $rssHtml; ?>
-                <?php echo $galleryHtml; ?>
-                <?php echo $booksHtml; ?>
-                <?php echo $bilibiliHtml; ?>
+                <?php echo $articlesHtml; ?>
+                <?php echo $activityHtml; ?>
+                <?php echo $projectsHtml; ?>
+                <?php echo $momentsPreviewHtml; ?>
                 <?php echo $linksHtml; ?>
                 <?php echo $donationHtml; ?>
                 <?php echo $noticeHtml; ?>
@@ -661,6 +610,7 @@ if ($guestbook['enabled'] ?? false) {
         <script src="theme-data.js" defer></script>
         <script src="theme-utils.js" defer></script>
         <script src="app.js" defer></script>
+        <script src="cms.js" defer></script>
     </body>
 </html>
 <?php

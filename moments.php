@@ -1,6 +1,7 @@
 <?php
 /**
  * MoeHome 虚拟主机版 - 动态页面
+ * 版本 v4.0 - CMS 内容管理系统
  */
 
 error_reporting(E_ALL);
@@ -16,27 +17,20 @@ if (file_exists($configFile)) {
 
 $site = $config['site'] ?? [];
 $theme = $config['theme'] ?? [];
-$moments = $config['moments'] ?? [];
 $footer = $config['footer'] ?? [];
 
 $siteUrl = $site['url'] ?? '';
 $siteName = $site['name'] ?? '';
 $ogImage = $site['ogImage'] ?? '';
 
-$pages = $config['pages']['moments'] ?? [];
-$pageTitle = ($pages['title'] ?? '动态') . ' | ' . $siteName;
-$pageTagline = $pages['tagline'] ?? '我的碎片化分享...';
-$pageDescription = $pages['description'] ?? '';
-$pageKeywords = isset($pages['keywords']) && is_array($pages['keywords']) ? implode(', ', $pages['keywords']) : '';
+$pageTitle = '动态 | ' . $siteName;
+$pageTagline = '我的碎片化分享，这里记录分享实用经验、生活点滴、瞬间感悟。';
+$pageDescription = 'MoeHome 个人主页动态页面';
+$pageKeywords = '动态, 博客, 个人主页';
 
 $themeDefault = $theme['default'] ?? 'light';
 $themeDefaultScheme = $theme['defaultScheme'] ?? ['light' => 'coralOrange', 'dark' => 'cyberGreen'];
-
-$memosEnabled = $moments['enabled'] ?? false;
-$memosUrl = $moments['memosUrl'] ?? '';
-$memosCount = $moments['count'] ?? 10;
-$memosTags = json_encode($moments['tags'] ?? [], JSON_UNESCAPED_UNICODE);
-$showSkeleton = ($moments['showSkeleton'] ?? true) ? 'true' : 'false';
+$themeDefaultSchemeData = $themeDefaultScheme[$themeDefault] ?? 'coralOrange';
 
 $themeDefaultSchemeJson = json_encode($themeDefaultScheme, JSON_UNESCAPED_UNICODE);
 $themeInitScript = <<<HTML
@@ -63,9 +57,15 @@ $themeInitScript = <<<HTML
 })();
 </script>
 HTML;
+
+$icpEnabled = !empty($footer['icp']['enabled']);
+$icpNumber = $icpEnabled ? htmlspecialchars($footer['icp']['number'] ?? '', ENT_QUOTES, 'UTF-8') : '';
+$copyrightYear = htmlspecialchars(($footer['copyright']['year'] ?? date('Y')), ENT_QUOTES, 'UTF-8');
+$copyrightName = htmlspecialchars(($footer['copyright']['name'] ?? $siteName), ENT_QUOTES, 'UTF-8');
+$copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTES, 'UTF-8');
 ?>
 <!doctype html>
-<html lang="zh-CN" data-theme="<?php echo htmlspecialchars($themeDefault); ?>" data-scheme="<?php echo htmlspecialchars($themeDefaultScheme[$themeDefault] ?? 'coralOrange'); ?>">
+<html lang="zh-CN" data-theme="<?php echo htmlspecialchars($themeDefault); ?>" data-scheme="<?php echo htmlspecialchars($themeDefaultSchemeData); ?>">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, shrink-to-fit=no" />
@@ -346,6 +346,71 @@ HTML;
                 gap: var(--space-4);
             }
 
+            .moment-card {
+                background: var(--bg-secondary);
+                border-radius: var(--radius-md);
+                padding: var(--space-6);
+                border: 1px solid var(--border);
+                transition: all 0.2s ease;
+            }
+
+            .moment-card:hover {
+                border-color: var(--accent);
+                box-shadow: 0 4px 16px var(--accent-dim);
+            }
+
+            .moment-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: var(--space-4);
+            }
+
+            .moment-date {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+                font-family: "JetBrains Mono", monospace;
+            }
+
+            .moment-pinned {
+                padding: 2px 8px;
+                background: var(--accent);
+                color: var(--bg-primary);
+                font-size: 0.75rem;
+                border-radius: 4px;
+                font-weight: 500;
+            }
+
+            .moment-content {
+                color: var(--text-primary);
+                font-size: 1rem;
+                line-height: 1.8;
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+
+            .moment-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-top: var(--space-4);
+            }
+
+            .moment-tag {
+                padding: 4px 12px;
+                background: var(--accent-dim);
+                color: var(--accent);
+                font-size: 0.8125rem;
+                border-radius: 12px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .moment-tag:hover {
+                background: var(--accent);
+                color: var(--bg-primary);
+            }
+
             .footer {
                 text-align: center;
                 margin-top: var(--space-8);
@@ -388,34 +453,28 @@ HTML;
                 text-align: center;
             }
 
+            .moments-empty {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 200px;
+                color: var(--text-secondary);
+                text-align: center;
+            }
+
             @media (max-width: 768px) {
                 .moments-page-header p {
                     font-size: 0.875rem;
                     max-width: 280px;
                 }
-                .moments-section {
-                    padding: 0 0 var(--space-6);
+                .moment-card {
+                    padding: var(--space-4);
                 }
             }
         </style>
-
-        <link rel="preload" href="style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-        <noscript><link rel="stylesheet" href="style.css"></noscript>
-
-        <script>
-            window.MOEHOME_CONFIG = {
-                moments: {
-                    memosUrl: '<?php echo htmlspecialchars($memosUrl); ?>',
-                    count: <?php echo intval($memosCount); ?>,
-                    tags: <?php echo $memosTags; ?>,
-                    showSkeleton: <?php echo $showSkeleton; ?>
-                }
-            };
-        </script>
     </head>
     <body>
-        <a href="#actual-content" class="skip-link">跳到主要内容</a>
-
         <nav class="navbar" id="navbar">
             <div class="navbar-inner">
                 <a href="index.php" class="navbar-brand">
@@ -425,7 +484,6 @@ HTML;
                 <div class="navbar-menu" id="navbar-menu">
                     <a href="index.php" class="nav-link">首页</a>
                     <a href="moments.php" class="nav-link active">动态</a>
-                    <a href="guestbook.php" class="nav-link">留言</a>
                 </div>
                 <div class="navbar-actions">
                     <button class="nav-theme-toggle" id="theme-toggle" aria-label="切换主题">
@@ -457,48 +515,144 @@ HTML;
         <div class="nav-mobile-dropdown" id="nav-mobile-dropdown">
             <a href="index.php" class="nav-link">首页</a>
             <a href="moments.php" class="nav-link active">动态</a>
-            <a href="guestbook.php" class="nav-link">留言</a>
         </div>
 
         <div class="container">
             <div class="moments-wrapper">
-                <div class="moments-page-header">
-                    <h1><?php echo htmlspecialchars($pages['title'] ?? '动态'); ?></h1>
+                <header class="moments-page-header">
+                    <h1>动态</h1>
                     <p><?php echo htmlspecialchars($pageTagline); ?></p>
-                </div>
+                </header>
 
                 <div class="divider"></div>
 
-                <section class="moments-section" id="actual-content">
-                    <?php if ($memosEnabled): ?>
-                    <div class="moments-filter" role="tablist" id="moments-filter">
-                        <button class="filter-tag active" data-tag="">全部</button>
+                <section class="moments-section">
+                    <div class="moments-filter" id="moments-filter">
+                        <span class="filter-tag active" data-tag="">全部</span>
                     </div>
 
-                    <div id="moments-feed" class="moments-feed">
+                    <div class="moments-feed" id="moments-feed">
                         <div class="moments-loading">
-                            <i class="fas fa-spinner fa-spin"></i>
+                            <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 12px;"></i>
                             <span>加载中...</span>
                         </div>
                     </div>
-                    <?php else: ?>
-                    <div class="moments-error">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <p>动态功能已禁用</p>
-                    </div>
-                    <?php endif; ?>
                 </section>
 
                 <footer class="footer">
-                    <p>&copy; <?php echo date('Y'); ?> <a href="<?php echo htmlspecialchars($footer['copyright']['url'] ?? '#'); ?>"><?php echo htmlspecialchars($footer['copyright']['name'] ?? $siteName); ?></a></p>
+                    <p>&copy; <?php echo $copyrightYear; ?> <a href="<?php echo $copyrightUrl; ?>"><?php echo $copyrightName; ?></a></p>
+                    <?php if ($icpEnabled): ?>
+                    <p><a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer"><?php echo $icpNumber; ?></a></p>
+                    <?php endif; ?>
                 </footer>
             </div>
         </div>
 
-        <script src="media-manager.js" defer></script>
-        <script src="theme-data.js" defer></script>
-        <script src="theme-utils.js" defer></script>
-        <script src="moments.js" defer></script>
-        <script src="app.js" defer></script>
+        <script src="theme-data.js"></script>
+        <script src="theme-utils.js"></script>
+        <script>
+            (function() {
+                const API_BASE = 'api';
+                const feedContainer = document.getElementById('moments-feed');
+                const filterContainer = document.getElementById('moments-filter');
+                let currentTag = '';
+
+                async function loadMoments(tag = '') {
+                    try {
+                        const response = await fetch(`${API_BASE}/content.php?action=moments&count=20&tag=${encodeURIComponent(tag)}`);
+                        const data = await response.json();
+                        
+                        if (data.moments && data.moments.length > 0) {
+                            renderMoments(data.moments);
+                            await loadTags();
+                        } else {
+                            feedContainer.innerHTML = `
+                                <div class="moments-empty">
+                                    <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                                    <p>暂无动态</p>
+                                </div>
+                            `;
+                        }
+                    } catch (error) {
+                        feedContainer.innerHTML = `
+                            <div class="moments-error">
+                                <i class="fas fa-exclamation-circle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                                <p>加载失败，请稍后重试</p>
+                            </div>
+                        `;
+                    }
+                }
+
+                function renderMoments(moments) {
+                    feedContainer.innerHTML = moments.map(moment => `
+                        <article class="moment-card">
+                            <div class="moment-header">
+                                <span class="moment-date">${moment.created_at}</span>
+                                ${moment.is_pinned ? '<span class="moment-pinned">置顶</span>' : ''}
+                            </div>
+                            <div class="moment-content">${escapeHtml(moment.content)}</div>
+                            ${moment.tags ? `
+                                <div class="moment-tags">
+                                    ${moment.tags.split(',').map(tag => `<span class="moment-tag" data-tag="${tag.trim()}">#${tag.trim()}</span>`).join('')}
+                                </div>
+                            ` : ''}
+                        </article>
+                    `).join('');
+                }
+
+                async function loadTags() {
+                    try {
+                        const response = await fetch(`${API_BASE}/content.php?action=moments&page=1&limit=100`);
+                        const data = await response.json();
+                        
+                        const tags = new Set();
+                        data.moments.forEach(m => {
+                            if (m.tags) {
+                                m.tags.split(',').forEach(t => tags.add(t.trim()));
+                            }
+                        });
+                        
+                        const tagButtons = Array.from(tags).filter(t => t).map(tag => 
+                            `<span class="filter-tag" data-tag="${tag}">#${tag}</span>`
+                        ).join('');
+                        
+                        filterContainer.innerHTML = `<span class="filter-tag active" data-tag="">全部</span>${tagButtons}`;
+                        
+                        filterContainer.querySelectorAll('.filter-tag').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                filterContainer.querySelectorAll('.filter-tag').forEach(b => b.classList.remove('active'));
+                                this.classList.add('active');
+                                currentTag = this.dataset.tag || '';
+                                loadMoments(currentTag);
+                            });
+                        });
+                    } catch (error) {
+                        console.error('Failed to load tags:', error);
+                    }
+                }
+
+                function escapeHtml(str) {
+                    if (!str) return '';
+                    return str.replace(/&/g, '&amp;')
+                              .replace(/</g, '&lt;')
+                              .replace(/>/g, '&gt;')
+                              .replace(/"/g, '&quot;');
+                }
+
+                loadMoments();
+
+                document.addEventListener('click', function(e) {
+                    const target = e.target;
+                    if (target.classList.contains('moment-tag')) {
+                        filterContainer.querySelectorAll('.filter-tag').forEach(b => b.classList.remove('active'));
+                        filterContainer.querySelector('[data-tag=""]').classList.remove('active');
+                        const tagBtn = filterContainer.querySelector(`[data-tag="${target.dataset.tag}"]`);
+                        if (tagBtn) tagBtn.classList.add('active');
+                        currentTag = target.dataset.tag;
+                        loadMoments(currentTag);
+                    }
+                });
+            })();
+        </script>
     </body>
 </html>

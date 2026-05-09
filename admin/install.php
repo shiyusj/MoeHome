@@ -115,6 +115,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     INDEX `idx_email` (`email`),
                     INDEX `idx_token` (`token`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `moehome_articles` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `title` VARCHAR(255) NOT NULL,
+                    `slug` VARCHAR(255) NOT NULL UNIQUE,
+                    `excerpt` TEXT,
+                    `content` LONGTEXT NOT NULL,
+                    `cover` VARCHAR(500),
+                    `tags` VARCHAR(500),
+                    `status` ENUM('draft', 'published') DEFAULT 'draft',
+                    `is_featured` TINYINT(1) DEFAULT 0,
+                    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` DATETIME,
+                    INDEX `idx_status` (`status`),
+                    INDEX `idx_is_featured` (`is_featured`),
+                    INDEX `idx_created_at` (`created_at`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `moehome_projects` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `name` VARCHAR(255) NOT NULL,
+                    `slug` VARCHAR(255) NOT NULL UNIQUE,
+                    `description` TEXT,
+                    `cover` VARCHAR(500),
+                    `url` VARCHAR(500),
+                    `language` VARCHAR(50),
+                    `stars` INT DEFAULT 0,
+                    `forks` INT DEFAULT 0,
+                    `status` ENUM('active', 'maintenance', 'archived') DEFAULT 'active',
+                    `sort_order` INT DEFAULT 0,
+                    `is_main` TINYINT(1) DEFAULT 0,
+                    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` DATETIME,
+                    INDEX `idx_status` (`status`),
+                    INDEX `idx_is_main` (`is_main`),
+                    INDEX `idx_sort_order` (`sort_order`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `moehome_moments` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `content` TEXT NOT NULL,
+                    `tags` VARCHAR(500),
+                    `is_pinned` TINYINT(1) DEFAULT 0,
+                    `status` ENUM('draft', 'published') DEFAULT 'published',
+                    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` DATETIME,
+                    INDEX `idx_status` (`status`),
+                    INDEX `idx_is_pinned` (`is_pinned`),
+                    INDEX `idx_created_at` (`created_at`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
                 ";
 
                 $statements = array_filter(array_map('trim', explode(';', $sql)));
