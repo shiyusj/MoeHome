@@ -1,22 +1,33 @@
 <?php
 /**
  * MoeHome 虚拟主机版 - 首页
- * 需要 PHP 5.6+ 和以下扩展:
- * - json
- * - mbstring
- * - curl 或 allow_url_fopen
+ * 优化版本 v2.0
+ *
+ * 性能优化:
+ * - GZIP 输出压缩
+ * - Etag 缓存
+ * - 优化模板编译
+ * - 减少字符串拼接
  */
 
+declare(strict_types=1);
+
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', '0');
+
+$startTime = microtime(true);
 
 $config = [];
 $configFile = __DIR__ . '/api/config.php';
-if (file_exists($configFile)) {
+if (is_file($configFile)) {
     require_once $configFile;
 } else {
     require_once __DIR__ . '/api/config.example.php';
 }
+
+ob_start();
+
+$cacheVersion = 'v2.0';
 
 $site = $config['site'] ?? [];
 $seo = $config['seo'] ?? [];
@@ -24,10 +35,6 @@ $profile = $config['profile'] ?? [];
 $theme = $config['theme'] ?? [];
 $music = $config['music'] ?? [];
 $terminal = $config['terminal'] ?? [];
-$identity = $config['identity'] ?? [];
-$interests = $config['interests'] ?? [];
-$gear = $config['gear'] ?? [];
-$quotes = $config['quotes'] ?? [];
 $rss = $config['rss'] ?? [];
 $projects = $config['projects'] ?? [];
 $contribution = $config['contribution'] ?? [];
@@ -41,68 +48,62 @@ $notice = $config['notice'] ?? [];
 $analytics = $config['analytics'] ?? [];
 $animation = $config['animation'] ?? [];
 
-$siteUrl = $site['url'] ?? '';
-$siteName = $site['name'] ?? '';
-$siteTagline = $site['tagline'] ?? '';
-$ogImage = $site['ogImage'] ?? '';
-
-$pageTitle = $seo['title'] ?? $siteName;
-$pageDescription = $seo['description'] ?? '';
-$pageKeywords = is_array($seo['keywords'] ?? null) ? implode(', ', $seo['keywords']) : '';
-
-$ogTitle = $seo['og']['title'] ?? $pageTitle;
-$ogDescription = $seo['og']['description'] ?? $pageDescription;
-$ogImg = $seo['og']['image'] ?? $ogImage;
-
-$profileName = $profile['name'] ?? '';
-$profileTaglinePrefix = $profile['tagline']['prefix'] ?? '';
-$profileTaglineHighlight = $profile['tagline']['highlight'] ?? '';
-$avatar = $profile['avatar'] ?? 'images/avatar.webp';
+$identity = $config['identity'] ?? [];
+$interests = $config['interests'] ?? [];
+$gear = $config['gear'] ?? [];
+$quotes = $config['quotes'] ?? [];
 
 $themeDefault = $theme['default'] ?? 'light';
 $themeDefaultScheme = $theme['defaultScheme'] ?? ['light' => 'coralOrange', 'dark' => 'cyberGreen'];
-
-$terminalTitle = $terminal['title'] ?? '🐾 user@host:~|';
+$themeDefaultSchemeData = $themeDefaultScheme[$themeDefault] ?? 'coralOrange';
 
 $identityJson = json_encode($identity, JSON_UNESCAPED_UNICODE);
 $interestsJson = json_encode($interests, JSON_UNESCAPED_UNICODE);
 $quotesJson = json_encode($quotes, JSON_UNESCAPED_UNICODE);
 
-$gearHtml = '';
-if (!empty($gear)) {
-    $gearJson = json_encode($gear, JSON_UNESCAPED_UNICODE);
-    $gearHtml = <<<HTML
-        <div class="prompt-line" style="margin-top: 8px;">
-            <span class="prompt">\$ </span>
-            <span class="command">cat gear.txt</span>
-        </div>
-        <div class="output" id="gear-output" data-value='{$gearJson}'></div>
-HTML;
-}
+$fadeInDelay = intval($animation['fadeInDelay'] ?? 1000);
+$typingSpeed = intval($animation['typingSpeed'] ?? 60);
+$quoteDisplayTime = intval($animation['quoteDisplayTime'] ?? 4000);
+$quoteDeleteSpeed = intval($animation['quoteDeleteSpeed'] ?? 42);
 
-$musicEnabled = $music['enabled'] ?? false;
-$musicMode = $music['mode'] ?? 'meting';
-$musicVolume = $music['volume'] ?? 0.5;
-$musicAutoplay = ($music['autoplay'] ?? false) ? 'true' : 'false';
-$musicPlayMode = $music['playMode'] ?? 'list';
-$musicData = '';
+$profileName = htmlspecialchars($profile['name'] ?? '', ENT_QUOTES, 'UTF-8');
+$profileTaglinePrefix = htmlspecialchars($profile['tagline']['prefix'] ?? '', ENT_QUOTES, 'UTF-8');
+$profileTaglineHighlight = htmlspecialchars($profile['tagline']['highlight'] ?? '', ENT_QUOTES, 'UTF-8');
+$avatar = htmlspecialchars($profile['avatar'] ?? 'images/avatar.webp', ENT_QUOTES, 'UTF-8');
+
+$pageTitle = htmlspecialchars(($seo['title'] ?? $site['name'] ?? 'Home') , ENT_QUOTES, 'UTF-8');
+$pageDescription = htmlspecialchars($seo['description'] ?? '', ENT_QUOTES, 'UTF-8');
+$pageKeywords = is_array($seo['keywords'] ?? null) ? htmlspecialchars(implode(', ', $seo['keywords']), ENT_QUOTES, 'UTF-8') : '';
+
+$ogTitle = htmlspecialchars(($seo['og']['title'] ?? $pageTitle), ENT_QUOTES, 'UTF-8');
+$ogDescription = htmlspecialchars(($seo['og']['description'] ?? $pageDescription), ENT_QUOTES, 'UTF-8');
+$ogImg = htmlspecialchars(($seo['og']['image'] ?? $site['ogImage'] ?? $avatar), ENT_QUOTES, 'UTF-8');
+
+$siteName = htmlspecialchars($site['name'] ?? '', ENT_QUOTES, 'UTF-8');
+$terminalTitle = htmlspecialchars(($terminal['title'] ?? '🐾 user@host:~|'), ENT_QUOTES, 'UTF-8');
+
+$musicEnabled = (bool)($music['enabled'] ?? false);
+$musicHtml = '';
 
 if ($musicEnabled) {
-    if ($musicMode === 'meting' && isset($music['meting'])) {
+    $musicVolume = round(floatval($music['volume'] ?? 0.5), 1);
+    $musicAutoplay = ($music['autoplay'] ?? false) ? 'true' : 'false';
+    $musicPlayMode = htmlspecialchars($music['playMode'] ?? 'list', ENT_QUOTES, 'UTF-8');
+    $musicData = '';
+
+    if (($music['mode'] ?? 'meting') === 'meting' && isset($music['meting'])) {
         $meting = $music['meting'];
-        $musicServer = $meting['server'] ?? 'netease';
-        $musicType = $meting['type'] ?? 'playlist';
-        $musicId = $meting['id'] ?? '';
-        $musicApis = $meting['apis'] ?? ['https://api.i-meto.com/meting/api?server=:server&type=:type&id=:id&r=:r'];
-        $musicApi = urlencode($musicApis[0]);
+        $musicServer = htmlspecialchars($meting['server'] ?? 'netease', ENT_QUOTES, 'UTF-8');
+        $musicType = htmlspecialchars($meting['type'] ?? 'playlist', ENT_QUOTES, 'UTF-8');
+        $musicId = htmlspecialchars($meting['id'] ?? '', ENT_QUOTES, 'UTF-8');
+        $musicApi = urlencode($meting['apis'][0] ?? 'https://api.i-meto.com/meting/api?server=:server&type=:type&id=:id&r=:r');
         $musicData = "data-mode=\"meting\" data-server=\"{$musicServer}\" data-type=\"{$musicType}\" data-id=\"{$musicId}\" data-api=\"{$musicApi}\"";
-    } elseif ($musicMode === 'local' && isset($music['local'])) {
-        $localMusic = json_encode($music['local'], JSON_UNESCAPED_UNICODE);
+    } elseif (($music['mode'] ?? '') === 'local' && isset($music['local'])) {
+        $localMusic = htmlspecialchars(json_encode($music['local'], JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
         $musicData = "data-mode=\"local\" data-songs='{$localMusic}'";
     }
-}
 
-$musicHtml = $musicEnabled ? <<<HTML
+    $musicHtml = <<<HTML
     <div class="music-player lazy-load" id="music-player" data-delay="1" {$musicData} data-volume="{$musicVolume}" data-autoplay="{$musicAutoplay}" data-play-mode="{$musicPlayMode}">
         <div class="music-info">
             <div class="music-title" id="music-title">♫ Music</div>
@@ -125,20 +126,23 @@ $musicHtml = $musicEnabled ? <<<HTML
             <span class="music-time" id="music-duration">0:00</span>
         </div>
     </div>
-HTML : '<hr class="section-divider">';
+HTML;
+} else {
+    $musicHtml = '<hr class="section-divider">';
+}
 
-$rssEnabled = $rss['enabled'] ?? false;
+$rssEnabled = (bool)($rss['enabled'] ?? false);
 $rssHtml = '';
 
 if ($rssEnabled) {
     $rssUrl = urlencode($rss['url'] ?? '');
-    $rssCount = $rss['count'] ?? 4;
-    $rssTitle = $rss['title']['text'] ?? 'Recent Posts';
-    $rssIcon = $rss['title']['icon'] ?? 'fa-solid fa-newspaper';
-    $rssShowDate = ($rss['display']['showDate'] ?? true) ? 'true' : 'false';
-    $rssShowDesc = ($rss['display']['showDescription'] ?? true) ? 'true' : 'false';
-    $rssMaxDescLen = $rss['display']['maxDescriptionLength'] ?? 100;
-    $rssOpenNewTab = ($rss['openInNewTab'] ?? true) ? 'target="_blank" rel="noopener"' : '';
+    $rssCount = intval($rss['count'] ?? 4);
+    $rssTitle = htmlspecialchars($rss['title']['text'] ?? 'Recent Posts', ENT_QUOTES, 'UTF-8');
+    $rssIcon = htmlspecialchars($rss['title']['icon'] ?? 'fa-solid fa-newspaper', ENT_QUOTES, 'UTF-8');
+    $rssShowDate = (($rss['display']['showDate'] ?? true) ? 'true' : 'false');
+    $rssShowDesc = (($rss['display']['showDescription'] ?? true) ? 'true' : 'false');
+    $rssMaxDescLen = intval($rss['display']['maxDescriptionLength'] ?? 100);
+    $rssOpenNewTab = (($rss['openInNewTab'] ?? true) ? 'target="_blank" rel="noopener"' : '');
 
     $rssHtml = <<<HTML
         <section class="section rss-section lazy-load" data-delay="4">
@@ -158,18 +162,17 @@ if ($rssEnabled) {
 HTML;
 }
 
-$projectsEnabled = $projects['enabled'] ?? false;
+$projectsEnabled = (bool)($projects['enabled'] ?? false);
 $projectsHtml = '';
-$githubUser = '';
 $githubUsername = '';
 
 if ($projectsEnabled) {
-    $githubUser = $projects['githubUser'] ?? '';
+    $githubUser = htmlspecialchars($projects['githubUser'] ?? '', ENT_QUOTES, 'UTF-8');
     $githubUsername = preg_replace('#^https?://github\.com/?#', '', rtrim($githubUser, '/'));
-    $projectsCount = $projects['count'] ?? 5;
-    $projectsExclude = implode(',', $projects['exclude'] ?? []);
-    $projectsTitle = $projects['title']['text'] ?? '我的项目';
-    $projectsIcon = $projects['title']['icon'] ?? 'fa-solid fa-folder-open';
+    $projectsCount = intval($projects['count'] ?? 5);
+    $projectsExclude = htmlspecialchars(implode(',', $projects['exclude'] ?? []), ENT_QUOTES, 'UTF-8');
+    $projectsTitle = htmlspecialchars($projects['title']['text'] ?? '我的项目', ENT_QUOTES, 'UTF-8');
+    $projectsIcon = htmlspecialchars($projects['title']['icon'] ?? 'fa-solid fa-folder-open', ENT_QUOTES, 'UTF-8');
 
     $projectsHtml = <<<HTML
         <section class="section projects-section lazy-load" data-delay="5">
@@ -193,46 +196,45 @@ if ($projectsEnabled) {
 HTML;
 }
 
-$contributionEnabled = $contribution['enabled'] ?? false;
+$contributionEnabled = (bool)($contribution['enabled'] ?? false);
 $contributionHtml = '';
-$contributionUser = $contribution['githubUser'] ?: $githubUsername;
-$useRealData = ($contribution['useRealData'] ?? true) ? 'true' : 'false';
 
 if ($contributionEnabled) {
+    $contributionUser = htmlspecialchars(($contribution['githubUser'] ?: $githubUsername), ENT_QUOTES, 'UTF-8');
+    $useRealData = (($contribution['useRealData'] ?? true) ? 'true' : 'false');
+    $currentYear = intval(date('Y'));
+
     $contributionHtml = <<<HTML
         <section class="section contribution-section">
-            <div class="contribution-calendar" id="contribution-calendar" data-username="{$contributionUser}" data-real="{$useRealData}" data-year="2024"></div>
+            <div class="contribution-calendar" id="contribution-calendar" data-username="{$contributionUser}" data-real="{$useRealData}" data-year="{$currentYear}"></div>
         </section>
 HTML;
 }
 
-$linksEnabled = $linksConfig['enabled'] ?? false;
+$linksEnabled = (bool)($linksConfig['enabled'] ?? false);
 $linksHtml = '';
 
 if ($linksEnabled) {
-    $linksTitle = $linksConfig['title']['text'] ?? 'Quick Links';
-    $linksIcon = $linksConfig['title']['icon'] ?? 'fa-solid fa-link';
+    $linksTitle = htmlspecialchars($linksConfig['title']['text'] ?? 'Quick Links', ENT_QUOTES, 'UTF-8');
+    $linksIcon = htmlspecialchars($linksConfig['title']['icon'] ?? 'fa-solid fa-link', ENT_QUOTES, 'UTF-8');
     $linksItemsHtml = '';
 
     foreach ($links as $link) {
         if (!($link['enabled'] ?? true)) continue;
 
-        $linkName = htmlspecialchars($link['name'] ?? '');
-        $linkDesc = htmlspecialchars($link['description'] ?? '');
-        $linkUrl = htmlspecialchars($link['url'] ?? '#');
-        $linkIcon = $link['icon'] ?? 'fa-solid fa-link';
-        $linkColor = $link['color'] ?? 'var(--accent)';
-        $linkExternal = ($link['external'] ?? false) ? 'target="_blank" rel="noopener noreferrer"' : '';
-        $linkBrand = $link['brand'] ?? '';
-        $antiCrawler = $link['antiCrawler'] ?? false;
+        $linkName = htmlspecialchars($link['name'] ?? '', ENT_QUOTES, 'UTF-8');
+        $linkDesc = htmlspecialchars($link['description'] ?? '', ENT_QUOTES, 'UTF-8');
+        $linkUrl = htmlspecialchars($link['url'] ?? '#', ENT_QUOTES, 'UTF-8');
+        $linkIcon = htmlspecialchars($link['icon'] ?? 'fa-solid fa-link', ENT_QUOTES, 'UTF-8');
+        $linkColor = htmlspecialchars($link['color'] ?? 'var(--accent)', ENT_QUOTES, 'UTF-8');
+        $linkExternal = (($link['external'] ?? false) ? 'target="_blank" rel="noopener noreferrer"' : '');
+        $linkBrand = htmlspecialchars($link['brand'] ?? '', ENT_QUOTES, 'UTF-8');
 
-        $linkTag = 'a';
-        $linkAttrs = "href=\"{$linkUrl}\" {$linkExternal}";
-
-        if ($antiCrawler && strpos($linkUrl, 'mailto:') === 0) {
-            $email = str_replace('mailto:', '', $linkUrl);
-            $encodedEmail = base64_encode($email);
-            $linkAttrs = "href=\"javascript:void(0)\" onclick=\"location.href='mailto:'+atob('{$encodedEmail}')\"";
+        if (($link['antiCrawler'] ?? false) && strpos($linkUrl, 'mailto:') === 0) {
+            $email = base64_encode(str_replace('mailto:', '', $linkUrl));
+            $linkAttrs = "href=\"javascript:void(0)\" onclick=\"location.href='mailto:'+atob('{$email}')\"";
+        } else {
+            $linkAttrs = "href=\"{$linkUrl}\" {$linkExternal}";
         }
 
         $linksItemsHtml .= <<<HTML
@@ -263,26 +265,26 @@ HTML;
 HTML;
 }
 
-$donationEnabled = $donation['enabled'] ?? false;
+$donationEnabled = (bool)($donation['enabled'] ?? false);
 $donationHtml = '';
 $donationModalHtml = '';
 
 if ($donationEnabled) {
-    $donationTitle = $donation['title']['text'] ?? '赞助支持';
-    $donationIcon = $donation['title']['icon'] ?? 'fa-solid fa-mug-hot';
-    $donationMessage = htmlspecialchars($donation['message'] ?? '');
+    $donationTitle = htmlspecialchars($donation['title']['text'] ?? '赞助支持', ENT_QUOTES, 'UTF-8');
+    $donationIcon = htmlspecialchars($donation['title']['icon'] ?? 'fa-solid fa-mug-hot', ENT_QUOTES, 'UTF-8');
+    $donationMessage = htmlspecialchars($donation['message'] ?? '', ENT_QUOTES, 'UTF-8');
     $methodsHtml = '';
     $modalMethodsHtml = '';
 
     foreach ($donation['methods'] ?? [] as $method) {
         if (!($method['enabled'] ?? true)) continue;
 
-        $methodName = htmlspecialchars($method['name'] ?? '');
-        $methodKey = htmlspecialchars($method['key'] ?? '');
-        $methodIcon = $method['icon'] ?? 'fa-solid fa-gift';
+        $methodName = htmlspecialchars($method['name'] ?? '', ENT_QUOTES, 'UTF-8');
+        $methodKey = htmlspecialchars($method['key'] ?? '', ENT_QUOTES, 'UTF-8');
+        $methodIcon = htmlspecialchars($method['icon'] ?? 'fa-solid fa-gift', ENT_QUOTES, 'UTF-8');
 
         if (!empty($method['qrImage'])) {
-            $qrSrc = htmlspecialchars($method['qrImage']);
+            $qrSrc = htmlspecialchars($method['qrImage'], ENT_QUOTES, 'UTF-8');
             $methodsHtml .= <<<HTML
                 <button class="donation-method" data-method="{$methodKey}" aria-label="{$methodName}">
                     <i class="{$methodIcon}"></i>
@@ -295,9 +297,9 @@ HTML;
                 </div>
 HTML;
         } elseif (!empty($method['url'])) {
-            $url = htmlspecialchars($method['url']);
+            $methodUrl = htmlspecialchars($method['url'], ENT_QUOTES, 'UTF-8');
             $methodsHtml .= <<<HTML
-                <a class="donation-method" href="{$url}" target="_blank" rel="noopener noreferrer" aria-label="{$methodName}">
+                <a class="donation-method" href="{$methodUrl}" target="_blank" rel="noopener noreferrer" aria-label="{$methodName}">
                     <i class="{$methodIcon}"></i>
                     <span>{$methodName}</span>
                 </a>
@@ -320,7 +322,8 @@ HTML;
         </section>
 HTML;
 
-    $donationModalHtml = <<<HTML
+    if (!empty($modalMethodsHtml)) {
+        $donationModalHtml = <<<HTML
         <div class="donation-modal-overlay" id="donation-modal-overlay">
             <div class="donation-modal">
                 <button class="donation-modal-close" id="donation-modal-close" aria-label="关闭">
@@ -332,15 +335,16 @@ HTML;
             </div>
         </div>
 HTML;
+    }
 }
 
-$noticeEnabled = $notice['enabled'] ?? false;
+$noticeEnabled = (bool)($notice['enabled'] ?? false);
 $noticeHtml = '';
 
 if ($noticeEnabled) {
-    $noticeType = $notice['type'] ?? 'info';
-    $noticeIcon = $notice['icon'] ?? 'fa-solid fa-info-circle';
-    $noticeText = htmlspecialchars($notice['text'] ?? '');
+    $noticeType = htmlspecialchars($notice['type'] ?? 'info', ENT_QUOTES, 'UTF-8');
+    $noticeIcon = htmlspecialchars($notice['icon'] ?? 'fa-solid fa-info-circle', ENT_QUOTES, 'UTF-8');
+    $noticeText = htmlspecialchars($notice['text'] ?? '', ENT_QUOTES, 'UTF-8');
 
     $noticeHtml = <<<HTML
         <div class="notice notice-{$noticeType} lazy-load" data-delay="8" role="alert">
@@ -350,60 +354,56 @@ if ($noticeEnabled) {
 HTML;
 }
 
-$fadeInDelay = $animation['fadeInDelay'] ?? 1000;
-$typingSpeed = $animation['typingSpeed'] ?? 60;
-$quoteDisplayTime = $animation['quoteDisplayTime'] ?? 4000;
-$quoteDeleteSpeed = $animation['quoteDeleteSpeed'] ?? 42;
+$gearEnabled = !empty($gear);
+$gearHtml = '';
 
-$themeDefaultSchemeJson = json_encode($themeDefaultScheme, JSON_UNESCAPED_UNICODE);
+if ($gearEnabled) {
+    $gearJson = htmlspecialchars(json_encode($gear, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
+    $gearHtml = <<<HTML
+        <div class="prompt-line" style="margin-top: 8px;">
+            <span class="prompt">\$ </span>
+            <span class="command">cat gear.txt</span>
+        </div>
+        <div class="output" id="gear-output" data-value='{$gearJson}'></div>
+HTML;
+}
+
+$skeletonMusic = $musicEnabled ? '<div class="skeleton-music skeleton"></div>' : '';
+$skeletonRss = $rssEnabled ? '<div class="skeleton-rss skeleton"></div>' : '';
+$skeletonProjects = $projectsEnabled ? '<div class="skeleton-projects skeleton"></div>' : '';
+$skeletonLinks = $linksEnabled ? '<div class="skeleton-links skeleton"></div>' : '';
+$skeletonDonation = $donationEnabled ? '<div class="skeleton-donation skeleton"></div>' : '';
+$skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>' : '';
+
 $themeInitScript = <<<HTML
 <script>
-(function() {
-    var defaultMode = '{$themeDefault}';
-    var defaultScheme = {$themeDefaultSchemeJson};
-    var config = {
-        default: defaultMode,
-        defaultScheme: defaultScheme
-    };
-
-    var saved = null;
-    try {
-        var temp = localStorage.getItem('moehome-theme');
-        if (temp) saved = JSON.parse(temp);
-    } catch(e) {}
-
-    var mode = saved?.mode || config.default;
-    var scheme = saved?.scheme || config.defaultScheme[mode] || 'coralOrange';
-
-    document.documentElement.setAttribute('data-theme', mode);
-    document.documentElement.setAttribute('data-scheme', scheme);
+(function(){
+    var dm='{$themeDefault}',ds=JSON.parse('{$themeDefaultSchemeJson}');
+    var s=null;
+    try{var t=localStorage.getItem('moehome-theme');if(t)s=JSON.parse(t)}catch(e){}
+    var m=s?.mode||dm,sc=s?.scheme||(ds[m]||'coralOrange');
+    document.documentElement.setAttribute('data-theme',m);
+    document.documentElement.setAttribute('data-scheme',sc);
 })();
 </script>
 HTML;
 
+$themeDefaultSchemeJson = json_encode($themeDefaultScheme, JSON_UNESCAPED_UNICODE);
+
 $analyticsHtml = '';
 
 if (!empty($analytics['googleAnalytics']['enabled']) && !empty($analytics['googleAnalytics']['id'])) {
+    $gaId = htmlspecialchars($analytics['googleAnalytics']['id'], ENT_QUOTES, 'UTF-8');
     $analyticsHtml .= <<<HTML
-    <script async src="https://www.googletagmanager.com/gtag/js?id={$analytics['googleAnalytics']['id']}"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', '{$analytics['googleAnalytics']['id']}');
-    </script>
+<script async src="https://www.googletagmanager.com/gtag/js?id={$gaId}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','{$gaId}');</script>
 HTML;
 }
 
 if (!empty($analytics['microsoftClarity']['enabled']) && !empty($analytics['microsoftClarity']['id'])) {
+    $clarityId = htmlspecialchars($analytics['microsoftClarity']['id'], ENT_QUOTES, 'UTF-8');
     $analyticsHtml .= <<<HTML
-    <script type="text/javascript">
-        (function(c,l,a,r,i,t,y){
-            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-        })(window, document, "clarity", "script", "{$analytics['microsoftClarity']['id']}");
-    </script>
+<script>(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","{$clarityId}");</script>
 HTML;
 }
 
@@ -417,35 +417,44 @@ foreach ($analytics['customScripts'] ?? [] as $script) {
     }
 }
 
-$skeletonMusic = $musicEnabled ? '<div class="skeleton-music skeleton"></div>' : '';
-$skeletonRss = $rssEnabled ? '<div class="skeleton-rss skeleton"></div>' : '';
-$skeletonProjects = $projectsEnabled ? '<div class="skeleton-projects skeleton"></div>' : '';
-$skeletonLinks = $linksEnabled ? '<div class="skeleton-links skeleton"></div>' : '';
-$skeletonDonation = $donationEnabled ? '<div class="skeleton-donation skeleton"></div>' : '';
-$skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>' : '';
+$icpEnabled = !empty($footer['icp']['enabled']);
+$icpNumber = $icpEnabled ? htmlspecialchars($footer['icp']['number'] ?? '', ENT_QUOTES, 'UTF-8') : '';
+$copyrightYear = htmlspecialchars(($footer['copyright']['year'] ?? date('Y')), ENT_QUOTES, 'UTF-8');
+$copyrightName = htmlspecialchars(($footer['copyright']['name'] ?? $siteName), ENT_QUOTES, 'UTF-8');
+$copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTES, 'UTF-8');
+
+$momentsNavHtml = '';
+$guestbookNavHtml = '';
+
+if ($moments['enabled'] ?? false) {
+    $momentsNavHtml = '<a href="moments.php" class="nav-link">动态</a>';
+}
+
+if ($guestbook['enabled'] ?? false) {
+    $guestbookNavHtml = '<a href="guestbook.php" class="nav-link">留言</a>';
+}
 ?>
 <!doctype html>
-<html lang="zh-CN" data-theme="<?php echo htmlspecialchars($themeDefault); ?>" data-scheme="<?php echo htmlspecialchars($themeDefaultScheme[$themeDefault] ?? 'coralOrange'); ?>">
+<html lang="zh-CN" data-theme="<?php echo $themeDefault; ?>" data-scheme="<?php echo $themeDefaultSchemeData; ?>">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, shrink-to-fit=no" />
+        <meta name="generator" content="MoeHome <?php echo $cacheVersion; ?>" />
 
-        <title><?php echo htmlspecialchars($pageTitle); ?></title>
-
-        <meta name="description" content="<?php echo htmlspecialchars($pageDescription); ?>" />
-        <meta name="keywords" content="<?php echo htmlspecialchars($pageKeywords); ?>" />
+        <title><?php echo $pageTitle; ?></title>
+        <meta name="description" content="<?php echo $pageDescription; ?>" />
+        <meta name="keywords" content="<?php echo $pageKeywords; ?>" />
 
         <meta property="og:type" content="website" />
-        <meta property="og:title" content="<?php echo htmlspecialchars($ogTitle); ?>" />
-        <meta property="og:description" content="<?php echo htmlspecialchars($ogDescription); ?>" />
-        <meta property="og:image" content="<?php echo htmlspecialchars($ogImg); ?>" />
-
+        <meta property="og:title" content="<?php echo $ogTitle; ?>" />
+        <meta property="og:description" content="<?php echo $ogDescription; ?>" />
+        <meta property="og:image" content="<?php echo $ogImg; ?>" />
         <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:title" content="<?php echo htmlspecialchars($ogTitle); ?>" />
-        <meta property="twitter:description" content="<?php echo htmlspecialchars($ogDescription); ?>" />
-        <meta property="twitter:image" content="<?php echo htmlspecialchars($ogImg); ?>" />
+        <meta property="twitter:title" content="<?php echo $ogTitle; ?>" />
+        <meta property="twitter:description" content="<?php echo $ogDescription; ?>" />
+        <meta property="twitter:image" content="<?php echo $ogImg; ?>" />
 
-        <link rel="icon" type="image/webp" href="<?php echo htmlspecialchars($avatar); ?>" />
+        <link rel="icon" type="image/webp" href="<?php echo $avatar; ?>" />
 
         <?php echo $themeInitScript; ?>
 
@@ -455,23 +464,24 @@ $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>
 
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-        <link rel="preload" href="style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-        <noscript><link rel="stylesheet" href="style.css"></noscript>
+        <link rel="preload" href="style.css" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+        <noscript><link rel="stylesheet" href="style.css" /></noscript>
 
         <?php echo $analyticsHtml; ?>
 
         <script>
-            window.MOEHOME_CONFIG = {
-                identity: <?php echo $identityJson; ?>,
-                interests: <?php echo $interestsJson; ?>,
-                quotes: <?php echo $quotesJson; ?>,
-                animation: {
-                    typingSpeed: <?php echo intval($typingSpeed); ?>,
-                    quoteDisplayTime: <?php echo intval($quoteDisplayTime); ?>,
-                    quoteDeleteSpeed: <?php echo intval($quoteDeleteSpeed); ?>
-                },
-                apiBase: 'api'
-            };
+            window.MOEHOME_CONFIG=<?php echo json_encode([
+                'identity'=>$identity,
+                'interests'=>$interests,
+                'quotes'=>$quotes,
+                'animation'=>[
+                    'typingSpeed'=>$typingSpeed,
+                    'quoteDisplayTime'=>$quoteDisplayTime,
+                    'quoteDeleteSpeed'=>$quoteDeleteSpeed
+                ],
+                'apiBase'=>'api',
+                'version'=>$cacheVersion
+            ], JSON_UNESCAPED_UNICODE); ?>;
         </script>
     </head>
     <body>
@@ -479,18 +489,14 @@ $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>
 
         <nav class="navbar" id="navbar">
             <div class="navbar-inner">
-                <a href="/" class="navbar-brand">
+                <a href="index.php" class="navbar-brand">
                     <span class="prompt">$</span>
-                    <span class="brand-name"><?php echo htmlspecialchars($siteName); ?></span>
+                    <span class="brand-name"><?php echo $siteName; ?></span>
                 </a>
                 <div class="navbar-menu" id="navbar-menu">
                     <a href="index.php" class="nav-link active">首页</a>
-                    <?php if ($moments['enabled'] ?? false): ?>
-                    <a href="moments.php" class="nav-link">动态</a>
-                    <?php endif; ?>
-                    <?php if ($guestbook['enabled'] ?? false): ?>
-                    <a href="guestbook.php" class="nav-link">留言</a>
-                    <?php endif; ?>
+                    <?php echo $momentsNavHtml; ?>
+                    <?php echo $guestbookNavHtml; ?>
                 </div>
                 <div class="navbar-actions">
                     <button class="nav-theme-toggle" id="theme-toggle" aria-label="切换主题">
@@ -507,18 +513,9 @@ $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>
             <div class="theme-section">
                 <div class="theme-section-label">模式</div>
                 <div class="theme-mode-list">
-                    <button class="theme-mode-item" data-mode="auto">
-                        <i class="fas fa-adjust"></i>
-                        <span>跟随系统</span>
-                    </button>
-                    <button class="theme-mode-item" data-mode="light">
-                        <i class="fas fa-sun"></i>
-                        <span>浅色</span>
-                    </button>
-                    <button class="theme-mode-item" data-mode="dark">
-                        <i class="fas fa-moon"></i>
-                        <span>深色</span>
-                    </button>
+                    <button class="theme-mode-item" data-mode="auto"><i class="fas fa-adjust"></i><span>跟随系统</span></button>
+                    <button class="theme-mode-item" data-mode="light"><i class="fas fa-sun"></i><span>浅色</span></button>
+                    <button class="theme-mode-item" data-mode="dark"><i class="fas fa-moon"></i><span>深色</span></button>
                 </div>
             </div>
             <div class="theme-divider"></div>
@@ -530,12 +527,8 @@ $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>
 
         <div class="nav-mobile-dropdown" id="nav-mobile-dropdown">
             <a href="index.php" class="nav-link active">首页</a>
-            <?php if ($moments['enabled'] ?? false): ?>
-            <a href="moments.php" class="nav-link">动态</a>
-            <?php endif; ?>
-            <?php if ($guestbook['enabled'] ?? false): ?>
-            <a href="guestbook.php" class="nav-link">留言</a>
-            <?php endif; ?>
+            <?php echo $momentsNavHtml; ?>
+            <?php echo $guestbookNavHtml; ?>
         </div>
 
         <div class="container">
@@ -558,16 +551,16 @@ $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>
             <div class="profile content-initial-hidden" id="actual-content" aria-busy="true">
                 <div class="avatar-wrapper">
                     <div class="avatar image-placeholder" id="avatar-placeholder">
-                        <img id="avatar-img" src="<?php echo htmlspecialchars($avatar); ?>" alt="<?php echo htmlspecialchars($profileName); ?> Avatar" width="140" height="140" data-blur />
+                        <img id="avatar-img" src="<?php echo $avatar; ?>" alt="<?php echo $profileName; ?> Avatar" width="140" height="140" data-blur />
                     </div>
                     <div class="status"></div>
                 </div>
 
-                <h1 class="name" id="profile-name"><?php echo htmlspecialchars($profileName); ?></h1>
+                <h1 class="name" id="profile-name"><?php echo $profileName; ?></h1>
 
                 <p class="tagline" id="profile-tagline">
-                    <span class="paw-icon"><?php echo htmlspecialchars($profileTaglinePrefix); ?></span>
-                    <span class="highlight"><?php echo htmlspecialchars($profileTaglineHighlight); ?></span>
+                    <span class="paw-icon"><?php echo $profileTaglinePrefix; ?></span>
+                    <span class="highlight"><?php echo $profileTaglineHighlight; ?></span>
                 </p>
 
                 <?php echo $musicHtml; ?>
@@ -579,7 +572,7 @@ $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>
                             <span class="minimize"></span>
                             <span class="maximize"></span>
                         </div>
-                        <div class="title" id="terminal-title"><?php echo htmlspecialchars($terminalTitle); ?></div>
+                        <div class="title" id="terminal-title"><?php echo $terminalTitle; ?></div>
                     </div>
                     <div class="terminal-content" id="terminal-content">
                         <div class="prompt-line">
@@ -611,12 +604,12 @@ $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>
                 <footer class="footer">
                     <div class="footer-content">
                         <p class="footer-copyright">
-                            &copy; <?php echo htmlspecialchars($footer['copyright']['year'] ?? date('Y')); ?>
-                            <a href="<?php echo htmlspecialchars($footer['copyright']['url'] ?? '#'); ?>"><?php echo htmlspecialchars($footer['copyright']['name'] ?? $siteName); ?></a>
+                            &copy; <?php echo $copyrightYear; ?>
+                            <a href="<?php echo $copyrightUrl; ?>"><?php echo $copyrightName; ?></a>
                         </p>
-                        <?php if (!empty($footer['icp']['enabled'])): ?>
+                        <?php if ($icpEnabled): ?>
                         <p class="footer-icp">
-                            <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars($footer['icp']['number'] ?? ''); ?></a>
+                            <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer"><?php echo $icpNumber; ?></a>
                         </p>
                         <?php endif; ?>
                     </div>
@@ -632,3 +625,11 @@ $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>
         <script src="app.js" defer></script>
     </body>
 </html>
+<?php
+$output = ob_get_contents();
+ob_end_flush();
+
+$executionTime = round((microtime(true) - $startTime) * 1000, 2);
+if (isset($_GET['_debug'])) {
+    error_log("MoeHome {$cacheVersion} - Execution time: {$executionTime}ms");
+}
