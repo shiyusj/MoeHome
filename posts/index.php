@@ -19,7 +19,8 @@ $theme = $config['theme'] ?? [];
 
 $pageConfig = $pages['posts'] ?? [];
 $pageTitle = htmlspecialchars(($pageConfig['title'] ?? '博客') . ' | ' . ($site['name'] ?? ''), ENT_QUOTES, 'UTF-8');
-$pageDescription = htmlspecialchars($pageConfig['description'] ?? '', ENT_QUOTES, 'UTF-8');
+$pageDescription = htmlspecialchars($pageConfig['description'] ?? '博客文章动态，记录技术分享与生活感悟', ENT_QUOTES, 'UTF-8');
+$pageKeywords = htmlspecialchars(implode(',', $pageConfig['keywords'] ?? ['博客', '文章', '技术分享']), ENT_QUOTES, 'UTF-8');
 $pageTagline = htmlspecialchars($pageConfig['tagline'] ?? '', ENT_QUOTES, 'UTF-8');
 
 $themeDefault = $theme['default'] ?? 'light';
@@ -28,7 +29,7 @@ $themeDefaultSchemeData = $themeDefaultScheme[$themeDefault] ?? 'coralOrange';
 
 $categories = $postsConfig['categories'] ?? [];
 
-$currentCategory = $_GET['category'] ?? '';
+$currentCategory = isset($_GET['category']) ? preg_replace('/[^a-zA-Z0-9_-]/', '', trim($_GET['category'])) : '';
 $categoryName = '全部';
 foreach ($categories as $cat) {
     if ($cat['slug'] === $currentCategory) {
@@ -51,15 +52,39 @@ $themeInitScript = <<<HTML
 })();
 </script>
 HTML;
+
+$canonicalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '') . '/posts/';
+if (!empty($currentCategory)) {
+    $canonicalUrl .= '?category=' . urlencode($currentCategory);
+}
+
+$ogImage = htmlspecialchars($site['url'] ?? '', ENT_QUOTES, 'UTF-8') . '/og-image.png';
 ?>
 <!doctype html>
 <html lang="zh-CN" data-theme="<?php echo $themeDefault; ?>" data-scheme="<?php echo $themeDefaultSchemeData; ?>">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, shrink-to-fit=no" />
-        
+
         <title><?php echo $pageTitle; ?></title>
         <meta name="description" content="<?php echo $pageDescription; ?>" />
+        <meta name="keywords" content="<?php echo $pageKeywords; ?>" />
+        <meta name="author" content="<?php echo htmlspecialchars($site['name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
+        <meta name="robots" content="index, follow" />
+        <link rel="canonical" href="<?php echo $canonicalUrl; ?>" />
+
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="<?php echo $pageTitle; ?>" />
+        <meta property="og:description" content="<?php echo $pageDescription; ?>" />
+        <meta property="og:url" content="<?php echo $canonicalUrl; ?>" />
+        <meta property="og:site_name" content="<?php echo htmlspecialchars($site['name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
+        <meta property="og:image" content="<?php echo $ogImage; ?>" />
+        <meta property="og:locale" content="zh_CN" />
+
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="<?php echo $pageTitle; ?>" />
+        <meta name="twitter:description" content="<?php echo $pageDescription; ?>" />
+        <meta name="twitter:image" content="<?php echo $ogImage; ?>" />
 
         <?php echo $themeInitScript; ?>
 
@@ -71,6 +96,8 @@ HTML;
 
         <link rel="preload" href="../style.css" as="style" onload="this.onload=null;this.rel='stylesheet'" />
         <noscript><link rel="stylesheet" href="../style.css" /></noscript>
+
+        <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📝</text></svg>" />
     </head>
     <body>
         <a href="#actual-content" class="skip-link">跳到主要内容</a>
@@ -117,46 +144,46 @@ HTML;
             <a href="index.php" class="nav-link active">博客</a>
         </div>
 
-        <div class="container">
-            <div class="posts-page-wrapper" id="actual-content">
-                <div class="posts-page-header">
+        <main class="container" id="actual-content" role="main">
+            <div class="posts-page-wrapper">
+                <header class="posts-page-header">
                     <h1 class="posts-page-title">博客</h1>
                     <p class="posts-page-tagline"><?php echo $pageTagline; ?></p>
-                </div>
+                </header>
 
                 <div class="divider"></div>
 
-                <div class="posts-filter-bar">
-                    <div class="posts-filter" id="posts-filter">
-                        <button class="filter-item <?php echo empty($currentCategory) ? 'active' : ''; ?>" data-category="">
+                <nav class="posts-filter-bar" aria-label="文章分类筛选">
+                    <div class="posts-filter" id="posts-filter" role="tablist">
+                        <button class="filter-item <?php echo empty($currentCategory) ? 'active' : ''; ?>" data-category="" role="tab" aria-selected="<?php echo empty($currentCategory) ? 'true' : 'false'; ?>">
                             <i class="fas fa-layer-group"></i>
                             <span>全部</span>
                         </button>
                         <?php foreach ($categories as $cat): ?>
-                        <button class="filter-item <?php echo $currentCategory === $cat['slug'] ? 'active' : ''; ?>" data-category="<?php echo htmlspecialchars($cat['slug'], ENT_QUOTES, 'UTF-8'); ?>">
+                        <button class="filter-item <?php echo $currentCategory === $cat['slug'] ? 'active' : ''; ?>" data-category="<?php echo htmlspecialchars($cat['slug'], ENT_QUOTES, 'UTF-8'); ?>" role="tab" aria-selected="<?php echo $currentCategory === $cat['slug'] ? 'true' : 'false'; ?>">
                             <i class="<?php echo htmlspecialchars($cat['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
                             <span><?php echo htmlspecialchars($cat['name'], ENT_QUOTES, 'UTF-8'); ?></span>
                         </button>
                         <?php endforeach; ?>
                     </div>
-                </div>
+                </nav>
 
-                <div class="posts-container" id="posts-container">
-                    <div class="posts-loading">
+                <section class="posts-container" id="posts-container" aria-label="文章列表">
+                    <div class="posts-loading" aria-live="polite">
                         <i class="fas fa-spinner fa-spin"></i>
                         <span>加载中...</span>
                     </div>
-                </div>
+                </section>
 
-                <div class="posts-pagination" id="posts-pagination">
-                    <button class="pagination-btn prev" id="pagination-prev" disabled>
+                <nav class="posts-pagination" id="posts-pagination" aria-label="分页导航">
+                    <button class="pagination-btn prev" id="pagination-prev" disabled aria-label="上一页">
                         <i class="fas fa-chevron-left"></i>
                     </button>
-                    <span class="pagination-info" id="pagination-info">第 1 页</span>
-                    <button class="pagination-btn next" id="pagination-next" disabled>
+                    <span class="pagination-info" id="pagination-info" aria-live="polite">第 1 页</span>
+                    <button class="pagination-btn next" id="pagination-next" disabled aria-label="下一页">
                         <i class="fas fa-chevron-right"></i>
                     </button>
-                </div>
+                </nav>
 
                 <footer class="footer">
                     <div class="footer-content">
@@ -167,13 +194,23 @@ HTML;
                     </div>
                 </footer>
             </div>
-        </div>
+        </main>
+
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "Blog",
+            "name": "<?php echo htmlspecialchars($site['name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>",
+            "description": "<?php echo $pageDescription; ?>",
+            "url": "<?php echo $canonicalUrl; ?>"
+        }
+        </script>
 
         <script>
             window.POSTS_CONFIG = <?php echo json_encode([
                 'apiBase' => '../api',
                 'currentCategory' => $currentCategory
-            ], JSON_UNESCAPED_UNICODE); ?>;
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         </script>
 
         <script src="../media-manager.js" defer></script>

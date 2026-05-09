@@ -11,7 +11,7 @@ class PostsModule {
         this.totalPages = 1;
         this.postsPerPage = 6;
         this.isLoading = false;
-        
+
         this.init();
     }
 
@@ -27,12 +27,13 @@ class PostsModule {
         const count = parseInt(postsList.dataset.count) || 4;
 
         this.fetchPosts(1, count, '')
-            .then(posts => {
+            .then(result => {
+                const posts = Array.isArray(result) ? result : (result.posts || []);
                 this.renderHomepagePosts(posts);
             })
             .catch(error => {
                 console.error('Failed to fetch posts:', error);
-                postsList.innerHTML = '<div class="posts-error">文章加载失败</div>';
+                postsList.innerHTML = '<div class="posts-error"><i class="fas fa-exclamation-circle"></i><span>文章加载失败</span></div>';
             });
     }
 
@@ -53,7 +54,7 @@ class PostsModule {
 
         const prevBtn = document.getElementById('pagination-prev');
         const nextBtn = document.getElementById('pagination-next');
-        
+
         if (prevBtn) {
             prevBtn.addEventListener('click', () => this.handlePrevPage());
         }
@@ -65,17 +66,24 @@ class PostsModule {
     }
 
     async fetchPosts(page = 1, limit = 6, category = '') {
-        const url = new URL(`${this.apiBase}/posts.php`);
+        const url = new URL(`${this.apiBase}/posts.php`, window.location.origin);
         url.searchParams.set('page', page.toString());
         url.searchParams.set('limit', limit.toString());
         if (category) {
             url.searchParams.set('category', category);
         }
 
-        const response = await fetch(url.toString());
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
         if (!response.ok) {
-            throw new Error('Failed to fetch posts');
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+
         return await response.json();
     }
 
@@ -88,11 +96,11 @@ class PostsModule {
 
         try {
             const result = await this.fetchPosts(this.currentPage, this.postsPerPage, this.currentCategory);
-            const posts = result.posts || result;
+            const posts = Array.isArray(result) ? result : (result.posts || []);
             const total = result.total || posts.length;
-            
-            this.totalPages = Math.ceil(total / this.postsPerPage);
-            
+
+            this.totalPages = Math.ceil(total / this.postsPerPage) || 1;
+
             this.renderBlogPosts(posts);
             this.updatePagination();
         } catch (error) {
@@ -130,18 +138,19 @@ class PostsModule {
     }
 
     createPostCard(post) {
-        const tags = post.tags || [];
+        const tags = Array.isArray(post.tags) ? post.tags : [];
         const excerpt = post.excerpt || (post.content ? post.content.substring(0, 100) + '...' : '');
         const categoryName = this.getCategoryName(post.category);
-        
+        const postUrl = `posts/?p=${encodeURIComponent(post.id)}`;
+
         return `
             <article class="post-card">
                 <div class="post-header">
                     <span class="post-category">${this.escapeHtml(categoryName)}</span>
-                    <time class="post-date">${this.escapeHtml(post.date)}</time>
+                    <time class="post-date">${this.escapeHtml(post.date || '')}</time>
                 </div>
                 <h3 class="post-title">
-                    <a href="posts/?p=${post.id}" class="post-link">${this.escapeHtml(post.title)}</a>
+                    <a href="${postUrl}" class="post-link">${this.escapeHtml(post.title || '')}</a>
                 </h3>
                 <p class="post-excerpt">${this.escapeHtml(excerpt)}</p>
                 <div class="post-footer">
@@ -152,19 +161,20 @@ class PostsModule {
     }
 
     createBlogPostCard(post) {
-        const tags = post.tags || [];
+        const tags = Array.isArray(post.tags) ? post.tags : [];
         const excerpt = post.excerpt || (post.content ? post.content.substring(0, 120) + '...' : '');
         const categoryName = this.getCategoryName(post.category);
-        
+        const postUrl = `posts/?p=${encodeURIComponent(post.id)}`;
+
         return `
             <article class="blog-post-card">
                 <div class="blog-post-content">
                     <div class="blog-post-meta">
                         <span class="blog-post-category">${this.escapeHtml(categoryName)}</span>
-                        <time class="blog-post-date">${this.escapeHtml(post.date)}</time>
+                        <time class="blog-post-date">${this.escapeHtml(post.date || '')}</time>
                     </div>
                     <h2 class="blog-post-title">
-                        <a href="posts/?p=${post.id}" class="blog-post-link">${this.escapeHtml(post.title)}</a>
+                        <a href="${postUrl}" class="blog-post-link">${this.escapeHtml(post.title || '')}</a>
                     </h2>
                     <p class="blog-post-excerpt">${this.escapeHtml(excerpt)}</p>
                     <div class="blog-post-tags">
@@ -228,8 +238,9 @@ class PostsModule {
     }
 
     escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = String(text);
         return div.innerHTML;
     }
 }

@@ -373,11 +373,15 @@ $copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTE
         <meta property="og:title" content="<?php echo $ogTitle; ?>" />
         <meta property="og:description" content="<?php echo $ogDescription; ?>" />
         <meta property="og:image" content="<?php echo $ogImg; ?>" />
-        <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:title" content="<?php echo $ogTitle; ?>" />
-        <meta property="twitter:description" content="<?php echo $ogDescription; ?>" />
-        <meta property="twitter:image" content="<?php echo $ogImg; ?>" />
+        <meta property="og:url" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? ''); ?>" />
+        <meta property="og:site_name" content="<?php echo $siteName; ?>" />
+        <meta property="og:locale" content="zh_CN" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="<?php echo $ogTitle; ?>" />
+        <meta name="twitter:description" content="<?php echo $ogDescription; ?>" />
+        <meta name="twitter:image" content="<?php echo $ogImg; ?>" />
 
+        <link rel="canonical" href="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? ''); ?>" />
         <link rel="icon" type="image/webp" href="<?php echo $avatar; ?>" />
 
         <?php echo $themeInitScript; ?>
@@ -509,7 +513,7 @@ $copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTE
                         <?php echo $gearHtml; ?>
                         <div class="prompt-line" style="margin-top: 8px;">
                             <span class="prompt">$ </span>
-                            <span class="command">./wisdom.sh</span>
+                            <span class="command">cat quotes.txt</span>
                         </div>
                         <div class="output" id="quote-output" data-value='<?php echo $quotesJson; ?>' aria-live="polite" aria-label="Quotes"><span class="cursor-blink" aria-hidden="true"></span></div>
                     </div>
