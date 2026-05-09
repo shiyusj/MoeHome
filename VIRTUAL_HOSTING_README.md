@@ -1,105 +1,108 @@
-# MoeHome 虚拟主机版 - 部署指南
+# MoeHome 虚拟主机版 - 部署指南 v2.0
 
-专为普通虚拟主机（如 cPanel、Plesk 面板）优化的 PHP 版本，无需 Node.js 构建环境。
+专为普通虚拟主机（如 cPanel、Plesk 面板）优化的 PHP 版本，包含可视化后台管理系统。
 
 ## 环境要求
 
-- PHP 5.6+ (推荐 PHP 7.4+)
-- JSON 扩展
-- cURL 或 allow_url_fopen
-- Apache + mod_rewrite (推荐)
+- **PHP**: 7.4+ (推荐 PHP 8.0+)
+- **MySQL**: 5.7+
+- **PDO 扩展**: 必须
+- **JSON 扩展**: 必须
+- **mod_rewrite**: 推荐启用
 
 ## 快速部署
 
 ### 1. 上传文件
 
-通过 FTP/SFTP/cPanel 文件管理器上传以下文件到网站根目录：
+通过 FTP/SFTP/cPanel 文件管理器上传所有文件到网站根目录：
 
 ```
 /
-├── index.php          # 首页
-├── moments.php        # 动态页面
-├── guestbook.php     # 留言板页面
-├── style.css         # 样式文件
-├── app.js            # 主脚本
-├── theme-utils.js    # 主题工具
-├── theme-data.js     # 主题数据
-├── moments.js        # 动态模块
-├── guestbook.js      # 留言板模块
-├── media-manager.js  # 媒体管理
-├── comments-standalone.js  # 评论组件
-├── images/           # 图片资源
-├── music/            # 音乐文件（可选）
-├── api/              # API 代理目录
-│   ├── config.example.php  # 配置文件
-│   ├── rss.php       # RSS 代理
-│   ├── github.php    # GitHub API 代理
-│   ├── memos.php     # Memos API 代理
-│   └── cache/        # 缓存目录（自动创建）
-└── .htaccess         # Apache 配置
+├── index.php              # 首页
+├── moments.php           # 动态页面
+├── guestbook.php         # 留言板页面
+├── 404.php / 403.php / 500.php  # 错误页面
+├── style.css             # 样式文件
+├── app.js / theme-utils.js / ... # JS 脚本
+├── images/               # 图片资源
+├── api/                  # API 代理
+│   ├── config.example.php
+│   ├── config.php        # 你的配置（安装后生成）
+│   ├── rss.php
+│   ├── github.php
+│   ├── memos.php
+│   └── cache/
+├── admin/                # 后台管理
+│   ├── install.php       # 安装向导
+│   ├── login.php        # 登录页面
+│   ├── index.php        # 仪表盘
+│   ├── settings.php     # 站点设置
+│   ├── modules.php      # 模块管理
+│   ├── theme.php        # 主题设置
+│   ├── password.php      # 修改密码
+│   ├── api/             # 后台 API
+│   ├── assets/          # 后台资源
+│   └── partials/        # 模板组件
+└── .htaccess            # Apache 配置
 ```
 
-### 2. 配置站点
+### 2. 运行安装向导
 
-编辑 `api/config.example.php`，修改为你的配置：
+访问 `https://yourdomain.com/admin/install.php` 开始安装：
 
-```bash
-# 重命名配置文件
-mv api/config.example.php api/config.php
+```
+步骤 1: 数据库配置
+- 输入 MySQL 数据库信息
+- 系统会自动创建数据表
+
+步骤 2: 创建管理员账户
+- 设置后台登录用户名
+- 设置后台登录密码（至少6位）
+
+步骤 3: 安装完成
+- 自动跳转到登录页面
+- 使用刚才创建的管理员账户登录
 ```
 
-主要配置项：
+### 3. 访问后台
 
-```php
-// 站点基础信息
-$config['site'] = [
-    'name' => 'YourName',
-    'url' => 'https://yourdomain.com',
-];
+- 后台地址: `https://yourdomain.com/admin/`
+- 默认管理员: `admin` / `admin123` (首次安装后)
+- **首次登录后请立即修改密码！**
 
-// GitHub 配置
-$config['projects'] = [
-    'githubUser' => 'https://github.com/yourusername',
-];
+## 后台功能
 
-// RSS 订阅
-$config['rss'] = [
-    'enabled' => true,
-    'url' => 'https://yourblog.com/rss.xml',
-];
+### 仪表盘
+- 欢迎信息
+- 模块状态概览
+- 快速操作入口
+- 系统信息
 
-// Memos 动态
-$config['moments'] = [
-    'enabled' => true,
-    'memosUrl' => 'https://your-memos.com/',
-];
+### 站点设置
+- 站点基本信息（名称、URL、标语）
+- 个人资料（头像、显示名称）
+- SEO 设置（标题、描述、关键词）
+- 页脚设置（版权信息、ICP 备案）
 
-// 留言板
-$config['guestbook'] = [
-    'enabled' => true,
-    'provider' => 'waline',  // 或 'artalk'
-    'server' => 'https://your-waline.vercel.app',
-];
-```
+### 模块管理
+| 模块 | 说明 |
+|------|------|
+| RSS 聚合 | 显示博客最新文章 |
+| GitHub 项目 | 展示开源仓库 |
+| Memos 动态 | 碎片化内容 |
+| 留言板 | Waline/Artalk 评论 |
+| 音乐播放器 | 背景音乐 |
+| 赞赏支持 | 二维码收款 |
 
-### 3. 设置权限
+### 主题设置
+- 浅色/深色/跟随系统模式
+- 多种配色方案选择
+- 实时预览效果
 
-确保缓存目录可写：
-
-```bash
-chmod 755 api/cache
-# 或
-chmod 777 api/cache
-```
-
-### 4. 配置 URL 重写
-
-如果虚拟主机不支持 `.htaccess`，需要在 cPanel 或管理面板中启用 URL 重写。
-
-启用方法：
-1. 登录 cPanel
-2. 找到"高级" → "htaccess" 或 "URL 重写"
-3. 上传 `.htaccess` 文件
+### 其他功能
+- 清理缓存
+- 修改密码
+- 登录日志记录
 
 ## 虚拟主机兼容说明
 
@@ -108,6 +111,7 @@ chmod 777 api/cache
 | 功能 | 状态 | 说明 |
 |------|------|------|
 | 静态页面渲染 | ✅ | PHP 模板引擎 |
+| 可视化后台 | ✅ | MySQL 数据库 |
 | RSS 聚合 | ✅ | 通过 API 代理 |
 | GitHub 项目 | ✅ | 通过 API 代理 |
 | GitHub 贡献图 | ✅ | 通过 API 代理 |
@@ -119,8 +123,6 @@ chmod 777 api/cache
 
 ### API 代理说明
 
-虚拟主机无法直接调用第三方 API（RSS、GitHub、Memos），因此提供 PHP 代理：
-
 | API | 端点 | 说明 |
 |-----|------|------|
 | RSS | `/api/rss.php?url=编码的URL` | 缓存 1 小时 |
@@ -128,45 +130,62 @@ chmod 777 api/cache
 | GitHub | `/api/github.php?type=contributions&user=用户名` | 缓存 30 分钟 |
 | Memos | `/api/memos.php` | 缓存 5 分钟 |
 
-### 可选：提高 API 限制
+## 安全设置
 
-GitHub 未认证请求限制为 60 次/小时。获取更多配额：
+### 首次安装后
 
-1. 访问 https://github.com/settings/tokens
-2. 生成新 Token（无需任何权限）
-3. 在 `api/config.php` 中添加：
+1. **修改默认密码**
+   - 登录后台 → 修改密码
+   - 使用强密码（字母+数字+特殊字符）
+
+2. **检查目录权限**
+   ```bash
+   chmod 755 api/cache
+   chmod 644 admin/api/config.php
+   ```
+
+3. **删除安装文件（可选）**
+   ```bash
+   rm admin/install.php
+   ```
+
+### 可选：限制 API 访问
+
+在 `.htaccess` 中添加 IP 白名单：
+
+```apache
+<FilesMatch "\.(json)$">
+    Order Deny,Allow
+    Deny from all
+    Allow from 127.0.0.1
+    Allow from ::1
+</FilesMatch>
+```
+
+## 性能优化
+
+### 启用 GZIP 压缩
+
+`.htaccess` 已配置 GZIP 压缩，如不生效，添加：
 
 ```php
-$config['api']['github_token'] = 'ghp_xxxxxxxxxxxx';
+// 在 index.php 顶部添加
+if (substr_count($_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip') && function_exists('ob_gzhandler')) {
+    ob_start('ob_gzhandler');
+}
 ```
 
-## 目录结构
+### 静态资源缓存
 
-```
-your-site/
-├── index.php              # 首页 (必须)
-├── moments.php            # 动态页 (可选)
-├── guestbook.php           # 留言板 (可选)
-├── style.css               # 样式 (必须)
-├── app.js                  # 主脚本 (必须)
-├── theme-utils.js          # 主题工具 (必须)
-├── theme-data.js           # 主题数据 (必须)
-├── moments.js              # 动态模块 (必须)
-├── guestbook.js            # 留言板模块 (必须)
-├── media-manager.js        # 媒体管理 (必须)
-├── comments-standalone.js  # 评论组件 (必须)
-├── images/                 # 图片资源 (必须)
-│   ├── avatar.webp
-│   └── ...
-├── api/                    # API 代理 (必须)
-│   ├── config.example.php  # 配置示例
-│   ├── config.php         # 你的配置
-│   ├── rss.php
-│   ├── github.php
-│   ├── memos.php
-│   └── cache/              # 缓存目录
-└── .htaccess               # Apache 配置
-```
+`.htaccess` 已配置静态资源缓存：
+- 图片: 1 个月
+- CSS/JS: 1 周
+- 字体: 1 年
+
+### 缓存清理
+
+- **后台清理**: 仪表盘 → 清理缓存
+- **手动清理**: 删除 `api/cache/` 目录下的文件
 
 ## 常见问题
 
@@ -177,73 +196,60 @@ your-site/
 <?php phpinfo(); ?>
 ```
 
-确保 PHP 版本 >= 5.6
+确保 PHP 版本 >= 7.4
 
-### 2. API 请求失败
+### 2. 数据库连接失败
 
-检查虚拟主机设置：
-- 确认 allow_url_fopen 开启，或
-- 确认 cURL 扩展已安装
+- 确认 MySQL 服务正在运行
+- 检查 `api/config.php` 中的数据库配置
+- 确认数据库用户有权限访问该数据库
 
-### 3. 样式/图片加载失败
+### 3. 安装向导无法访问
 
-检查文件路径是否正确，特别是 `api/config.php` 中的路径配置。
+检查 `admin/` 目录是否正确上传
 
-### 4. 缓存目录不可写
+### 4. 样式/图片加载失败
+
+检查文件路径是否正确
+
+### 5. 缓存目录不可写
 
 ```bash
-# SSH 方式
 chmod 755 api/cache
-
-# FTP 方式
-在文件管理器中右键 → 权限 → 755
 ```
 
-### 5. 页面 500 错误
+## 数据库表结构
 
-检查 `.htaccess` 语法或禁用自定义 php.ini 设置。
+系统会自动创建以下表：
 
-## 性能优化
+```sql
+-- 用户表
+moehome_users
+├── id (INT, 主键)
+├── username (VARCHAR, 唯一)
+├── password (VARCHAR, 加密)
+├── email (VARCHAR)
+├── role (ENUM: admin/editor)
+├── created_at (DATETIME)
+└── last_login (DATETIME)
 
-### 启用 GZIP 压缩
+-- 配置表
+moehome_config
+├── id (INT, 主键)
+├── category (VARCHAR, 分类)
+├── key (VARCHAR, 配置键)
+├── value (TEXT, 配置值)
+├── type (ENUM: string/number/boolean/array/json)
+└── updated_at (DATETIME)
 
-`.htaccess` 已配置 GZIP 压缩，如不生效，添加：
-
-```php
-// 在 api/config.php 顶部添加
-if (substr_count($_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip') && function_exists('ob_gzhandler')) {
-    ob_start('ob_gzhandler');
-}
+-- 登录日志表
+moehome_login_attempts
+├── id (INT, 主键)
+├── ip (VARCHAR, IP地址)
+├── attempts (INT, 尝试次数)
+├── locked_until (DATETIME, 锁定截止时间)
+└── last_attempt (DATETIME)
 ```
-
-### 静态资源缓存
-
-`.htaccess` 已配置静态资源缓存（图片 1 年，CSS/JS 1 周）。
-
-### 缓存清理
-
-自动清理：`api/cache/` 目录下的文件会在过期后自动删除。
-
-手动清理：
-```bash
-rm -rf api/cache/*
-```
-
-## 安全建议
-
-1. **重命名配置文件**
-   ```bash
-   mv api/config.example.php api/config.php
-   ```
-
-2. **限制 API 访问**（可选）
-   在 `.htaccess` 中添加 IP 白名单
-
-3. **定期清理缓存**
-   ```bash
-   # crontab 设置
-   0 */6 * * * rm -rf /path/to/api/cache/*
-   ```
 
 ## 获取帮助
 
