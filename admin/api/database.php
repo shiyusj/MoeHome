@@ -1,7 +1,12 @@
 <?php
 /**
  * MoeHome 后台管理 - 数据库配置
- * 优化版本 v2.1 - 添加邮箱找回密码功能
+ * 安全加强版本 v2.2
+ * - Session固定防护
+ * - 密码重置IP绑定
+ * - 一次性令牌
+ * - 安全日志
+ * - API速率限制
  */
 
 declare(strict_types=1);
@@ -9,9 +14,17 @@ declare(strict_types=1);
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 
+define('SECURITY_VERSION', '2.2');
+define('RESET_TOKEN_EXPIRY', 1800);
+define('RATE_LIMIT_WINDOW', 60);
+define('MAX_API_REQUESTS', 30);
+define('MAX_LOGIN_ATTEMPTS', 5);
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+secureSession();
 
 $configFile = __DIR__ . '/../api/config.php';
 if (is_file($configFile)) {
@@ -31,9 +44,29 @@ define('SITE_URL', rtrim($config['site']['url'] ?? '', '/'));
 define('ADMIN_PATH', __DIR__);
 define('SITE_PATH', dirname(__DIR__));
 
-define('RESET_TOKEN_EXPIRY', 1800);
-define('RATE_LIMIT_WINDOW', 300);
-define('MAX_LOGIN_ATTEMPTS', 5);
+function secureSession(): void {
+    if (isset($_SESSION['last_regeneration']) && (time() - $_SESSION['last_regeneration']) > 300) {
+        session_regenerate_id(true);
+        $_SESSION['last_regeneration'] = time();
+    }
+    $_SESSION['last_regeneration'] = $_SESSION['last_regeneration'] ?? time();
+
+    if (!isset($_SESSION['session_created'])) {
+        $_SESSION['session_created'] = time();
+    }
+
+    if (isset($_SESSION['admin_id'])) {
+        $expectedIp = $_SESSION['admin_ip'] ?? null;
+        $currentIp = getClientIp();
+        if ($expectedIp !== null && $expectedIp !== $currentIp) {
+            if ((time() - $_SESSION['session_created']) > 300) {
+                logout();
+                header('Location: login.php?security=1');
+                exit;
+            }
+        }
+    }
+}
 
 class Database {
     private static ?PDO $instance = null;
@@ -271,7 +304,7 @@ function generateResetToken(): string {
     return bin2hex(random_bytes(32)) . time();
 }
 
-function createPasswordReset(string $email): ?array {
+function createPasswordReset(string $email, ?string $requestIp = null): ?array {
     $user = Database::fetchOne(
         "SELECT id, username FROM moehome_users WHERE email = :email",
         [':email' => $email]
@@ -285,45 +318,73 @@ function createPasswordReset(string $email): ?array {
 
     $token = generateResetToken();
     $hashedToken = hash('sha256', $token);
+    $tokenId = bin2hex(random_bytes(16));
 
     Database::insert('moehome_password_resets', [
         'email' => $email,
         'token' => $hashedToken,
         'created_at' => date('Y-m-d H:i:s'),
         'expires_at' => date('Y-m-d H:i:s', time() + RESET_TOKEN_EXPIRY),
-        'ip' => getClientIp()
+        'ip' => $requestIp ?? getClientIp()
     ]);
 
     return [
         'token' => $token,
+        'token_id' => $tokenId,
         'email' => $email,
         'username' => $user['username']
     ];
 }
 
-function verifyResetToken(string $token): ?array {
+function verifyResetToken(string $token, ?string $clientIp = null): ?array {
     $hashedToken = hash('sha256', $token);
 
     $record = Database::fetchOne(
-        "SELECT pr.email, pr.expires_at, u.username FROM moehome_password_resets pr
+        "SELECT pr.email, pr.expires_at, pr.ip, pr.created_at, u.username, u.id as user_id
+         FROM moehome_password_resets pr
          LEFT JOIN moehome_users u ON pr.email = u.email
          WHERE pr.token = :token",
         [':token' => $hashedToken]
     );
 
     if (!$record) {
+        logSecurityEvent('reset_token_invalid', 'Invalid or expired reset token');
         return null;
     }
 
     if (strtotime($record['expires_at']) < time()) {
         Database::delete('moehome_password_resets', 'token = :token', [':token' => $hashedToken]);
+        logSecurityEvent('reset_token_expired', 'Expired reset token used');
         return null;
+    }
+
+    if ($clientIp !== null && $record['ip'] !== $clientIp) {
+        $ipPartsRequest = explode('.', $clientIp);
+        $ipPartsStored = explode('.', $record['ip']);
+        if (count($ipPartsRequest) === 4 && count($ipPartsStored) === 4) {
+            if ($ipPartsRequest[0] !== $ipPartsStored[0] || $ipPartsRequest[1] !== $ipPartsStored[1]) {
+                logSecurityEvent('reset_token_ip_mismatch', "IP mismatch: {$clientIp} vs {$record['ip']}");
+                return null;
+            }
+        }
+    }
+
+    $timeDiff = time() - strtotime($record['created_at']);
+    if ($timeDiff > 300) {
+        logSecurityEvent('reset_token_delay', "Token used after {$timeDiff} seconds");
     }
 
     return [
         'email' => $record['email'],
-        'username' => $record['username'] ?? 'User'
+        'username' => $record['username'] ?? 'User',
+        'user_id' => $record['user_id']
     ];
+}
+
+function consumeResetToken(string $token): bool {
+    $hashedToken = hash('sha256', $token);
+    $result = Database::delete('moehome_password_resets', 'token = :token', [':token' => $hashedToken]);
+    return $result > 0;
 }
 
 function resetPassword(string $token, string $newPassword): bool {
@@ -341,27 +402,96 @@ function resetPassword(string $token, string $newPassword): bool {
         [':email' => $resetData['email']]
     );
 
-    Database::delete('moehome_password_resets', 'token = :token', [':token' => hash('sha256', $token)]);
+    consumeResetToken($token);
 
+    logSecurityEvent('password_reset_success', "Password reset for user ID: {$resetData['user_id']}");
+
+    return true;
+}
+
+function logSecurityEvent(string $event, string $details): void {
+    $logFile = __DIR__ . '/../../logs/security.log';
+    $logDir = dirname($logFile);
+
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0755, true);
+    }
+
+    $entry = sprintf(
+        "[%s] %s | IP: %s | User-Agent: %s | %s\n",
+        date('Y-m-d H:i:s'),
+        $event,
+        getClientIp(),
+        substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown', 0, 200),
+        $details
+    );
+
+    @file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
+}
+
+function checkApiRateLimit(string $identifier, int $maxRequests = 30, int $windowSeconds = 60): bool {
+    $cacheFile = __DIR__ . '/../../logs/.rate_' . md5($identifier) . '.json';
+    $now = time();
+
+    $data = [];
+    if (is_file($cacheFile)) {
+        $content = @file_get_contents($cacheFile);
+        if ($content !== false) {
+            $data = json_decode($content, true) ?? [];
+        }
+    }
+
+    $data = array_filter($data, fn($ts) => ($now - $ts) < $windowSeconds);
+    $data[] = $now;
+
+    if (count($data) > $maxRequests) {
+        logSecurityEvent('rate_limit_exceeded', "API rate limit exceeded for: {$identifier}");
+        return false;
+    }
+
+    @file_put_contents($cacheFile, json_encode($data), LOCK_EX);
     return true;
 }
 
 function requestPasswordReset(string $email): bool {
     $smtpHost = getConfig('email', 'smtp_host', '');
     if (empty($smtpHost)) {
+        logSecurityEvent('reset_attempt_no_smtp', "Password reset attempted but SMTP not configured for: {$email}");
         return false;
     }
 
-    $resetData = createPasswordReset($email);
-    if (!$resetData) {
+    $clientIp = getClientIp();
+
+    if (!checkLoginAttemptsForEmail($email)) {
         return false;
     }
+
+    $resetData = createPasswordReset($email, $clientIp);
+    if (!$resetData) {
+        logSecurityEvent('reset_attempt_invalid_email', "Password reset attempted for non-existent email: {$email}");
+        return true;
+    }
+
+    logSecurityEvent('reset_request_sent', "Password reset email sent to: {$email}");
 
     return sendPasswordResetEmail(
         $resetData['email'],
         $resetData['token'],
         $resetData['username']
     );
+}
+
+function checkLoginAttemptsForEmail(string $email): bool {
+    $record = Database::fetchOne(
+        "SELECT attempts, locked_until FROM moehome_login_attempts WHERE username = :username",
+        [':username' => $email]
+    );
+
+    if ($record && $record['locked_until'] && strtotime($record['locked_until']) > time()) {
+        return false;
+    }
+
+    return true;
 }
 
 function cleanupExpiredTokens(): int {

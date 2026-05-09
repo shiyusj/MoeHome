@@ -1,10 +1,14 @@
 # MoeHome 虚拟主机版 - Apache 配置
-# 优化版本 v2.0
+# 安全加强版本 v2.2
 
 # 启用 URL 重写
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
+
+    # 阻止 TRACE/TRACK 请求
+    RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK) [NC]
+    RewriteRule ^ - [F,L]
 
     # 强制使用 HTTPS (取消注释以启用)
     # RewriteCond %{HTTPS} off
@@ -15,19 +19,21 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^moments/?$ /moments.php [L,QSA]
     RewriteRule ^guestbook/?$ /guestbook.php [L,QSA]
-
-    # 隐藏 .html 扩展名 (可选)
-    # RewriteCond %{REQUEST_FILENAME} !-f
-    # RewriteCond %{REQUEST_FILENAME} !-d
-    # RewriteRule ^([^\.]+)$ $1.html [NC,L]
 </IfModule>
 
 # 安全头部
 <IfModule mod_headers.c>
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-XSS-Protection "1; mode=block"
-    Header set X-Frame-Options "SAMEORIGIN"
-    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-Robots-Tag "noindex, nofollow"
+
+    # HSTS
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+    # CSP
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https:; frame-ancestors 'self';"
 
     # 静态资源长期缓存
     <FilesMatch "\.(js|css|woff2|woff|ttf|eot)$">
@@ -57,21 +63,26 @@
     php_value upload_max_filesize 10M
     php_value post_max_size 12M
     php_value max_execution_time 60
+    php_value max_input_time 60
     php_value memory_limit 128M
     php_value session.use_strict_mode 1
+    php_value session.cookie_httponly 1
+    php_flag display_errors off
 </IfModule>
 
 <IfModule mod_php.c>
     php_value upload_max_filesize 10M
     php_value post_max_size 12M
     php_value max_execution_time 60
+    php_value max_input_time 60
     php_value memory_limit 128M
     php_value session.use_strict_mode 1
+    php_value session.cookie_httponly 1
+    php_flag display_errors off
 </IfModule>
 
 # GZIP 压缩
 <IfModule mod_deflate.c>
-    # 压缩类型
     AddOutputFilterByType DEFLATE text/html
     AddOutputFilterByType DEFLATE text/css
     AddOutputFilterByType DEFLATE application/javascript
@@ -87,7 +98,6 @@
     AddOutputFilterByType DEFLATE font/ttf
     AddOutputFilterByType DEFLATE font/eot
 
-    # 排除压缩
     SetEnvIfNoCase Request_URI "\.(gif|jpe?g|png)$" no-gzip dont-vary
     SetEnvIfNoCase Request_URI "\.(pdf|zip|gz|tar)$" no-gzip dont-vary
 </IfModule>
@@ -121,7 +131,7 @@
     Deny from all
 </FilesMatch>
 
-<FilesMatch "\.(config\.php|config\.example\.php|htaccess|htpasswd|sql|log|md)$">
+<FilesMatch "\.(config\.php|config\.example\.php|htaccess|htpasswd|sql|log|md|security\.php)$">
     Order allow,deny
     Deny from all
 </FilesMatch>
@@ -136,6 +146,11 @@
 # 禁止目录浏览
 Options -Indexes
 
+# 限制 HTTP 方法
+<LimitExcept GET POST HEAD>
+    Deny from all
+</LimitExcept>
+
 # 设置默认字符集
 AddDefaultCharset UTF-8
 AddCharset UTF-8 .html .css .js .xml .json
@@ -145,7 +160,8 @@ ErrorDocument 404 /404.php
 ErrorDocument 500 /500.php
 ErrorDocument 403 /403.php
 
-# 启用 URL 压缩
+# 移除版本信息
 <IfModule mod_headers.c>
-    RequestHeader unset Proxy early
+    Header unset X-Powered-By
+    Header unset Server
 </IfModule>
