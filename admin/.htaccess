@@ -1,0 +1,126 @@
+# MoeHome 管理后台 - Apache 安全配置 v2.0
+# 安全加强版本
+
+# 启用 URL 重写
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /admin/
+
+    # 阻止可疑请求
+    RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK) [NC]
+    RewriteRule ^ - [F,L]
+
+    # 强制 HTTPS (取消注释以启用)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^login\.php$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# 安全头部
+<IfModule mod_headers.c>
+    # 基础安全头部
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-Robots-Tag "noindex, nofollow"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+
+    # HSTS
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+    # CSP 头部
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https: blob:; connect-src 'self' https:; frame-ancestors 'self';"
+
+    # 缓存控制
+    <FilesMatch "\.(js|css)$">
+        Header set Cache-Control "public, max-age=604800, immutable"
+    </FilesMatch>
+
+    # 禁止缓存
+    <FilesMatch "\.(php|html)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+</IfModule>
+
+# 禁止访问敏感文件
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 禁止直接访问配置文件
+<FilesMatch "\.(config\.php|config\.example\.php|security\.php)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 禁止访问日志和备份文件
+<FilesMatch "\.(log|sql|bak|backup|json)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 禁止访问缓存目录
+<FilesMatch "^cache">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 禁止目录浏览
+Options -Indexes
+
+# PHP 配置 - 限制性设置
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 2M
+    php_value post_max_size 4M
+    php_value max_execution_time 30
+    php_value max_input_time 30
+    php_value memory_limit 64M
+    php_value session.cookie_httponly 1
+    php_value session.cookie_secure 1
+    php_value session.use_strict_mode 1
+    php_value session.cookie_samesite "Strict"
+    php_value session.gc_maxlifetime 3600
+    php_flag display_errors off
+    php_flag log_errors on
+</IfModule>
+
+<IfModule mod_php.c>
+    php_value upload_max_filesize 2M
+    php_value post_max_size 4M
+    php_value max_execution_time 30
+    php_value max_input_time 30
+    php_value memory_limit 64M
+    php_value session.cookie_httponly 1
+    php_value session.cookie_secure 1
+    php_value session.use_strict_mode 1
+    php_value session.cookie_samesite "Strict"
+    php_value session.gc_maxlifetime 3600
+    php_flag display_errors off
+    php_flag log_errors on
+</IfModule>
+
+# GZIP 压缩
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE text/plain
+</IfModule>
+
+# 限制 HTTP 方法
+<LimitExcept GET POST>
+    Deny from all
+</LimitExcept>
+
+# 设置默认字符集
+AddDefaultCharset UTF-8
+
+# 移除版本信息
+<IfModule mod_headers.c>
+    Header unset X-Powered-By
+    Header unset Server
+</IfModule>
