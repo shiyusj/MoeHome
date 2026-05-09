@@ -123,22 +123,43 @@ $config['rss'] = [
     ]
 ];
 
-// ==================== GitHub 配置 ====================
-$config['projects'] = [
-    'enabled' => true,
+// ==================== 图库配置 ====================
+$config['gallery'] = [
+    'enabled' => false,
     'title' => [
-        'text' => '我的项目',
-        'icon' => 'fa-solid fa-folder-open',
+        'text' => '我的图库',
+        'icon' => 'fa-solid fa-images'
     ],
-    'githubUser' => 'https://github.com/yourusername',
-    'count' => 5,
-    'exclude' => ['.github'],
+    'source' => 'local',
+    'count' => 8,
+    'local' => [
+        'directory' => 'images/gallery/'
+    ],
+    'huaban' => [
+        'boardId' => ''
+    ]
 ];
 
-$config['contribution'] = [
-    'enabled' => true,
-    'useRealData' => true,
-    'githubUser' => '',
+// ==================== 书架配置 (豆瓣) ====================
+$config['books'] = [
+    'enabled' => false,
+    'title' => [
+        'text' => '书架',
+        'icon' => 'fa-solid fa-book'
+    ],
+    'doubanId' => '',
+    'count' => 6
+];
+
+// ==================== 哔哩哔哩配置 ====================
+$config['bilibili'] = [
+    'enabled' => false,
+    'title' => [
+        'text' => '哔哩哔哩',
+        'icon' => 'fa-brands fa-bilibili'
+    ],
+    'uid' => '',
+    'count' => 4
 ];
 
 // ==================== Memos 动态 ====================

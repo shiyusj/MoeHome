@@ -1,13 +1,10 @@
 <?php
 /**
  * MoeHome 虚拟主机版 - 首页
- * 优化版本 v2.0
+ * 版本 v3.0
  *
- * 性能优化:
- * - GZIP 输出压缩
- * - Etag 缓存
- * - 优化模板编译
- * - 减少字符串拼接
+ * 新增模块: 图库、花架、哔哩哔哩
+ * 移除模块: GitHub项目、贡献图谱
  */
 
 declare(strict_types=1);
@@ -27,7 +24,7 @@ if (is_file($configFile)) {
 
 ob_start();
 
-$cacheVersion = 'v2.0';
+$cacheVersion = 'v3.0';
 
 $site = $config['site'] ?? [];
 $seo = $config['seo'] ?? [];
@@ -36,10 +33,11 @@ $theme = $config['theme'] ?? [];
 $music = $config['music'] ?? [];
 $terminal = $config['terminal'] ?? [];
 $rss = $config['rss'] ?? [];
-$projects = $config['projects'] ?? [];
-$contribution = $config['contribution'] ?? [];
 $moments = $config['moments'] ?? [];
 $guestbook = $config['guestbook'] ?? [];
+$gallery = $config['gallery'] ?? [];
+$books = $config['books'] ?? [];
+$bilibili = $config['bilibili'] ?? [];
 $linksConfig = $config['linksConfig'] ?? [];
 $links = $config['links'] ?? [];
 $donation = $config['donation'] ?? [];
@@ -162,32 +160,25 @@ if ($rssEnabled) {
 HTML;
 }
 
-$projectsEnabled = (bool)($projects['enabled'] ?? false);
-$projectsHtml = '';
-$githubUsername = '';
+$galleryEnabled = (bool)($gallery['enabled'] ?? false);
+$galleryHtml = '';
 
-if ($projectsEnabled) {
-    $githubUser = htmlspecialchars($projects['githubUser'] ?? '', ENT_QUOTES, 'UTF-8');
-    $githubUsername = preg_replace('#^https?://github\.com/?#', '', rtrim($githubUser, '/'));
-    $projectsCount = intval($projects['count'] ?? 5);
-    $projectsExclude = htmlspecialchars(implode(',', $projects['exclude'] ?? []), ENT_QUOTES, 'UTF-8');
-    $projectsTitle = htmlspecialchars($projects['title']['text'] ?? '我的项目', ENT_QUOTES, 'UTF-8');
-    $projectsIcon = htmlspecialchars($projects['title']['icon'] ?? 'fa-solid fa-folder-open', ENT_QUOTES, 'UTF-8');
+if ($galleryEnabled) {
+    $galleryTitle = htmlspecialchars($gallery['title']['text'] ?? '我的图库', ENT_QUOTES, 'UTF-8');
+    $galleryIcon = htmlspecialchars($gallery['title']['icon'] ?? 'fa-solid fa-images', ENT_QUOTES, 'UTF-8');
+    $gallerySource = htmlspecialchars($gallery['source'] ?? 'local', ENT_QUOTES, 'UTF-8');
+    $galleryCount = intval($gallery['count'] ?? 8);
 
-    $projectsHtml = <<<HTML
-        <section class="section projects-section lazy-load" data-delay="5">
+    $galleryHtml = <<<HTML
+        <section class="section gallery-section lazy-load" data-delay="5">
             <div class="section-header">
                 <h2 class="section-title">
-                    <i class="{$projectsIcon}"></i>
-                    <span>{$projectsTitle}</span>
+                    <i class="{$galleryIcon}"></i>
+                    <span>{$galleryTitle}</span>
                 </h2>
-                <a href="{$githubUser}" class="section-more" target="_blank" rel="noopener noreferrer">
-                    <span>查看更多</span>
-                    <i class="fas fa-external-link-alt"></i>
-                </a>
             </div>
-            <div class="projects-grid" id="projects-grid" data-username="{$githubUsername}" data-count="{$projectsCount}" data-exclude="{$projectsExclude}">
-                <div class="projects-loading">
+            <div class="gallery-grid" id="gallery-grid" data-source="{$gallerySource}" data-count="{$galleryCount}">
+                <div class="gallery-loading">
                     <i class="fas fa-spinner fa-spin"></i>
                     <span>加载中...</span>
                 </div>
@@ -196,17 +187,56 @@ if ($projectsEnabled) {
 HTML;
 }
 
-$contributionEnabled = (bool)($contribution['enabled'] ?? false);
-$contributionHtml = '';
+$booksEnabled = (bool)($books['enabled'] ?? false);
+$booksHtml = '';
 
-if ($contributionEnabled) {
-    $contributionUser = htmlspecialchars(($contribution['githubUser'] ?: $githubUsername), ENT_QUOTES, 'UTF-8');
-    $useRealData = (($contribution['useRealData'] ?? true) ? 'true' : 'false');
-    $currentYear = intval(date('Y'));
+if ($booksEnabled) {
+    $booksTitle = htmlspecialchars($books['title']['text'] ?? '书架', ENT_QUOTES, 'UTF-8');
+    $booksIcon = htmlspecialchars($books['title']['icon'] ?? 'fa-solid fa-book', ENT_QUOTES, 'UTF-8');
+    $booksCount = intval($books['count'] ?? 6);
+    $booksUserId = htmlspecialchars($books['doubanId'] ?? '', ENT_QUOTES, 'UTF-8');
 
-    $contributionHtml = <<<HTML
-        <section class="section contribution-section">
-            <div class="contribution-calendar" id="contribution-calendar" data-username="{$contributionUser}" data-real="{$useRealData}" data-year="{$currentYear}"></div>
+    $booksHtml = <<<HTML
+        <section class="section books-section lazy-load" data-delay="6">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="{$booksIcon}"></i>
+                    <span>{$booksTitle}</span>
+                </h2>
+            </div>
+            <div class="books-grid" id="books-grid" data-count="{$booksCount}" data-user-id="{$booksUserId}">
+                <div class="books-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>加载中...</span>
+                </div>
+            </div>
+        </section>
+HTML;
+}
+
+$bilibiliEnabled = (bool)($bilibili['enabled'] ?? false);
+$bilibiliHtml = '';
+
+if ($bilibiliEnabled) {
+    $bilibiliTitle = htmlspecialchars($bilibili['title']['text'] ?? '哔哩哔哩', ENT_QUOTES, 'UTF-8');
+    $bilibiliIcon = htmlspecialchars($bilibili['title']['icon'] ?? 'fa-brands fa-bilibili', ENT_QUOTES, 'UTF-8');
+    $bilibiliUid = htmlspecialchars($bilibili['uid'] ?? '', ENT_QUOTES, 'UTF-8');
+    $bilibiliCount = intval($bilibili['count'] ?? 4);
+
+    $bilibiliHtml = <<<HTML
+        <section class="section bilibili-section lazy-load" data-delay="7">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="{$bilibiliIcon}"></i>
+                    <span>{$bilibiliTitle}</span>
+                </h2>
+            </div>
+            <div class="bilibili-grid" id="bilibili-grid" data-uid="{$bilibiliUid}" data-count="{$bilibiliCount}">
+                <div class="bilibili-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>加载中...</span>
+                </div>
+            </div>
         </section>
 HTML;
 }
@@ -251,7 +281,7 @@ HTML;
     }
 
     $linksHtml = <<<HTML
-        <section class="section links-section lazy-load" data-delay="6">
+        <section class="section links-section lazy-load" data-delay="8">
             <div class="section-header">
                 <h2 class="section-title">
                     <i class="{$linksIcon}"></i>
@@ -308,7 +338,7 @@ HTML;
     }
 
     $donationHtml = <<<HTML
-        <section class="section donation-section lazy-load" data-delay="7">
+        <section class="section donation-section lazy-load" data-delay="9">
             <div class="donation-header">
                 <h2 class="section-title">
                     <i class="{$donationIcon}"></i>
@@ -347,7 +377,7 @@ if ($noticeEnabled) {
     $noticeText = htmlspecialchars($notice['text'] ?? '', ENT_QUOTES, 'UTF-8');
 
     $noticeHtml = <<<HTML
-        <div class="notice notice-{$noticeType} lazy-load" data-delay="8" role="alert">
+        <div class="notice notice-{$noticeType} lazy-load" data-delay="10" role="alert">
             <i class="{$noticeIcon}"></i>
             <span>{$noticeText}</span>
         </div>
@@ -370,7 +400,9 @@ HTML;
 
 $skeletonMusic = $musicEnabled ? '<div class="skeleton-music skeleton"></div>' : '';
 $skeletonRss = $rssEnabled ? '<div class="skeleton-rss skeleton"></div>' : '';
-$skeletonProjects = $projectsEnabled ? '<div class="skeleton-projects skeleton"></div>' : '';
+$skeletonGallery = $galleryEnabled ? '<div class="skeleton-gallery skeleton"></div>' : '';
+$skeletonBooks = $booksEnabled ? '<div class="skeleton-books skeleton"></div>' : '';
+$skeletonBilibili = $bilibiliEnabled ? '<div class="skeleton-bilibili skeleton"></div>' : '';
 $skeletonLinks = $linksEnabled ? '<div class="skeleton-links skeleton"></div>' : '';
 $skeletonDonation = $donationEnabled ? '<div class="skeleton-donation skeleton"></div>' : '';
 $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>' : '';
@@ -474,6 +506,9 @@ if ($guestbook['enabled'] ?? false) {
                 'identity'=>$identity,
                 'interests'=>$interests,
                 'quotes'=>$quotes,
+                'gallery'=>$gallery,
+                'books'=>$books,
+                'bilibili'=>$bilibili,
                 'animation'=>[
                     'typingSpeed'=>$typingSpeed,
                     'quoteDisplayTime'=>$quoteDisplayTime,
@@ -540,7 +575,9 @@ if ($guestbook['enabled'] ?? false) {
                 <?php echo $skeletonMusic; ?>
                 <div class="skeleton-terminal skeleton"></div>
                 <?php echo $skeletonRss; ?>
-                <?php echo $skeletonProjects; ?>
+                <?php echo $skeletonGallery; ?>
+                <?php echo $skeletonBooks; ?>
+                <?php echo $skeletonBilibili; ?>
                 <?php echo $skeletonLinks; ?>
                 <?php echo $skeletonDonation; ?>
                 <?php echo $skeletonNotice; ?>
@@ -594,9 +631,10 @@ if ($guestbook['enabled'] ?? false) {
                     </div>
                 </div>
 
-                <?php echo $contributionHtml; ?>
                 <?php echo $rssHtml; ?>
-                <?php echo $projectsHtml; ?>
+                <?php echo $galleryHtml; ?>
+                <?php echo $booksHtml; ?>
+                <?php echo $bilibiliHtml; ?>
                 <?php echo $linksHtml; ?>
                 <?php echo $donationHtml; ?>
                 <?php echo $noticeHtml; ?>
