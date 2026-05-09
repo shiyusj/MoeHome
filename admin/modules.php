@@ -47,31 +47,12 @@ if (isset($_GET['saved'])) {
 }
 
 $modules = [
-    'rss' => [
-        'name' => 'RSS 聚合',
-        'icon' => 'fa-rss',
-        'desc' => '显示博客的最新文章列表',
+    'posts' => [
+        'name' => '文章展示',
+        'icon' => 'fa-file-alt',
+        'desc' => '显示后台发布的文章列表',
         'fields' => [
-            'url' => ['type' => 'url', 'label' => 'RSS 订阅地址', 'placeholder' => 'https://yourblog.com/rss.xml'],
             'count' => ['type' => 'number', 'label' => '显示数量', 'placeholder' => '4'],
-        ]
-    ],
-    'projects' => [
-        'name' => 'GitHub 项目',
-        'icon' => 'fa-github',
-        'desc' => '展示 GitHub 公开仓库',
-        'fields' => [
-            'github_user' => ['type' => 'text', 'label' => 'GitHub 用户名', 'placeholder' => 'username'],
-            'count' => ['type' => 'number', 'label' => '显示数量', 'placeholder' => '5'],
-        ]
-    ],
-    'moments' => [
-        'name' => 'Memos 动态',
-        'icon' => 'fa-bolt',
-        'desc' => '显示 Memos 的碎片化内容',
-        'fields' => [
-            'memos_url' => ['type' => 'url', 'label' => 'Memos 实例地址', 'placeholder' => 'https://memos.example.com/'],
-            'count' => ['type' => 'number', 'label' => '显示数量', 'placeholder' => '10'],
         ]
     ],
     'guestbook' => [

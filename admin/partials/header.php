@@ -8,6 +8,7 @@ $currentPage = basename($_SERVER['PHP_SELF'], '.php');
 
 $navItems = [
     'index' => ['icon' => 'fa-home', 'label' => '仪表盘', 'url' => 'index.php'],
+    'posts' => ['icon' => 'fa-file-alt', 'label' => '文章管理', 'url' => 'posts.php'],
     'settings' => ['icon' => 'fa-cog', 'label' => '站点设置', 'url' => 'settings.php'],
     'modules' => ['icon' => 'fa-puzzle-piece', 'label' => '模块管理', 'url' => 'modules.php'],
     'theme' => ['icon' => 'fa-palette', 'label' => '主题设置', 'url' => 'theme.php'],
