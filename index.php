@@ -10,7 +10,13 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
-require_once __DIR__ . '/api/config.example.php';
+$config = [];
+$configFile = __DIR__ . '/api/config.php';
+if (file_exists($configFile)) {
+    require_once $configFile;
+} else {
+    require_once __DIR__ . '/api/config.example.php';
+}
 
 $site = $config['site'] ?? [];
 $seo = $config['seo'] ?? [];
@@ -478,12 +484,12 @@ $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>
                     <span class="brand-name"><?php echo htmlspecialchars($siteName); ?></span>
                 </a>
                 <div class="navbar-menu" id="navbar-menu">
-                    <a href="/" class="nav-link active">首页</a>
+                    <a href="index.php" class="nav-link active">首页</a>
                     <?php if ($moments['enabled'] ?? false): ?>
-                    <a href="moments.html" class="nav-link">动态</a>
+                    <a href="moments.php" class="nav-link">动态</a>
                     <?php endif; ?>
                     <?php if ($guestbook['enabled'] ?? false): ?>
-                    <a href="guestbook.html" class="nav-link">留言</a>
+                    <a href="guestbook.php" class="nav-link">留言</a>
                     <?php endif; ?>
                 </div>
                 <div class="navbar-actions">
@@ -523,12 +529,12 @@ $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>
         </div>
 
         <div class="nav-mobile-dropdown" id="nav-mobile-dropdown">
-            <a href="/" class="nav-link active">首页</a>
+            <a href="index.php" class="nav-link active">首页</a>
             <?php if ($moments['enabled'] ?? false): ?>
-            <a href="moments.html" class="nav-link">动态</a>
+            <a href="moments.php" class="nav-link">动态</a>
             <?php endif; ?>
             <?php if ($guestbook['enabled'] ?? false): ?>
-            <a href="guestbook.html" class="nav-link">留言</a>
+            <a href="guestbook.php" class="nav-link">留言</a>
             <?php endif; ?>
         </div>
 

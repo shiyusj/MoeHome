@@ -12,6 +12,22 @@ $config['site'] = [
     'ogImage' => 'https://example.com/images/avatar.webp',
 ];
 
+// ==================== 独立页面 SEO 配置 ====================
+$config['pages'] = [
+    'moments' => [
+        'title' => '动态',
+        'tagline' => '我的碎片化分享...',
+        'description' => '个人动态，记录生活点滴',
+        'keywords' => ['动态', '瞬间', '生活记录'],
+    ],
+    'guestbook' => [
+        'title' => '留言',
+        'tagline' => '欢迎在这里留下你的足迹...',
+        'description' => '留言板，欢迎留言交流',
+        'keywords' => ['留言板', '评论', '交流'],
+    ],
+];
+
 // ==================== 首页 SEO 配置 ====================
 $config['seo'] = [
     'title' => 'YourName - 技术博主 / 开源爱好者 / AI探索者',

@@ -17,7 +17,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-require_once __DIR__ . '/config.example.php';
+$config = [];
+$configFile = __DIR__ . '/config.php';
+if (file_exists($configFile)) {
+    require_once $configFile;
+} else {
+    require_once __DIR__ . '/config.example.php';
+}
 
 $type = isset($_GET['type']) ? $_GET['type'] : '';
 $user = isset($_GET['user']) ? trim($_GET['user']) : '';

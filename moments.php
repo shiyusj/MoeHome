@@ -6,7 +6,13 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
-require_once __DIR__ . '/api/config.example.php';
+$config = [];
+$configFile = __DIR__ . '/api/config.php';
+if (file_exists($configFile)) {
+    require_once $configFile;
+} else {
+    require_once __DIR__ . '/api/config.example.php';
+}
 
 $site = $config['site'] ?? [];
 $theme = $config['theme'] ?? [];
@@ -397,11 +403,13 @@ HTML;
         <noscript><link rel="stylesheet" href="style.css"></noscript>
 
         <script>
-            window.MOEHOME_MOMENTS_CONFIG = {
-                memosUrl: '<?php echo htmlspecialchars($memosUrl); ?>',
-                count: <?php echo intval($memosCount); ?>,
-                tags: <?php echo $memosTags; ?>,
-                showSkeleton: <?php echo $showSkeleton; ?>
+            window.MOEHOME_CONFIG = {
+                moments: {
+                    memosUrl: '<?php echo htmlspecialchars($memosUrl); ?>',
+                    count: <?php echo intval($memosCount); ?>,
+                    tags: <?php echo $memosTags; ?>,
+                    showSkeleton: <?php echo $showSkeleton; ?>
+                }
             };
         </script>
     </head>

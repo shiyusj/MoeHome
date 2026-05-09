@@ -9,7 +9,13 @@ header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Cache-Control: no-cache');
 
-require_once __DIR__ . '/config.example.php';
+$config = [];
+$configFile = __DIR__ . '/config.php';
+if (file_exists($configFile)) {
+    require_once $configFile;
+} else {
+    require_once __DIR__ . '/config.example.php';
+}
 
 $url = isset($_GET['url']) ? $_GET['url'] : '';
 

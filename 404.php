@@ -6,7 +6,13 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
-require_once __DIR__ . '/api/config.example.php';
+$config = [];
+$configFile = __DIR__ . '/api/config.php';
+if (file_exists($configFile)) {
+    require_once $configFile;
+} else {
+    require_once __DIR__ . '/api/config.example.php';
+}
 
 $site = $config['site'] ?? [];
 $siteName = $site['name'] ?? 'MoeHome';

@@ -6,7 +6,13 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
-require_once __DIR__ . '/api/config.example.php';
+$config = [];
+$configFile = __DIR__ . '/api/config.php';
+if (file_exists($configFile)) {
+    require_once $configFile;
+} else {
+    require_once __DIR__ . '/api/config.example.php';
+}
 
 $site = $config['site'] ?? [];
 $theme = $config['theme'] ?? [];
@@ -544,12 +550,15 @@ HTML;
         <?php echo $commentSdk; ?>
 
         <script>
-            window.MOEHOME_GUESTBOOK_CONFIG = {
-                provider: '<?php echo htmlspecialchars($guestbookProvider); ?>',
-                server: '<?php echo htmlspecialchars($guestbookServer); ?>',
-                site: '<?php echo htmlspecialchars($guestbookSite); ?>',
-                placeholder: '<?php echo htmlspecialchars($guestbookPlaceholder); ?>',
-                limits: <?php echo $limitsJson; ?>
+            window.HOMEPAGE_CONFIG = {
+                guestbook: {
+                    enabled: <?php echo $guestbookEnabled ? 'true' : 'false'; ?>,
+                    provider: '<?php echo htmlspecialchars($guestbookProvider); ?>',
+                    server: '<?php echo htmlspecialchars($guestbookServer); ?>',
+                    site: '<?php echo htmlspecialchars($guestbookSite); ?>',
+                    placeholder: '<?php echo htmlspecialchars($guestbookPlaceholder); ?>',
+                    limits: <?php echo $limitsJson; ?>
+                }
             };
         </script>
     </head>

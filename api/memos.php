@@ -15,7 +15,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-require_once __DIR__ . '/config.example.php';
+$config = [];
+$configFile = __DIR__ . '/config.php';
+if (file_exists($configFile)) {
+    require_once $configFile;
+} else {
+    require_once __DIR__ . '/config.example.php';
+}
 
 $memosUrl = isset($_GET['url']) ? $_GET['url'] : ($config['moments']['memosUrl'] ?? '');
 $count = isset($_GET['count']) ? intval($_GET['count']) : ($config['moments']['count'] ?? 10);
