@@ -14,12 +14,6 @@ $config['site'] = [
 
 // ==================== 独立页面 SEO 配置 ====================
 $config['pages'] = [
-    'posts' => [
-        'title' => '博客',
-        'tagline' => '我的技术文章与思考记录',
-        'description' => '博客文章动态，记录技术分享与生活感悟',
-        'keywords' => ['博客', '文章', '技术分享'],
-    ],
     'moments' => [
         'title' => '动态',
         'tagline' => '我的碎片化分享...',
@@ -112,25 +106,20 @@ $config['animation'] = [
     'quoteDeleteSpeed' => 42,
 ];
 
-// ==================== 博客文章配置 ====================
-$config['posts'] = [
+// ==================== RSS 配置 ====================
+$config['rss'] = [
     'enabled' => true,
+    'url' => 'https://yourblog.com/rss.xml',
     'count' => 4,
-    'openInNewTab' => false,
+    'openInNewTab' => true,
     'title' => [
-        'text' => '近期更新',
+        'text' => 'Recent Posts',
         'icon' => 'fa-solid fa-newspaper'
     ],
     'display' => [
         'showDate' => true,
         'showDescription' => true,
         'maxDescriptionLength' => 100
-    ],
-    'categories' => [
-        ['slug' => 'tech', 'name' => '技术文章', 'icon' => 'fa-solid fa-code'],
-        ['slug' => 'life', 'name' => '生活随笔', 'icon' => 'fa-solid fa-coffee'],
-        ['slug' => 'project', 'name' => '项目分享', 'icon' => 'fa-solid fa-folder-open'],
-        ['slug' => 'default', 'name' => '其他', 'icon' => 'fa-solid fa-file']
     ]
 ];
 

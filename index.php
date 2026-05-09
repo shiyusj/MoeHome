@@ -1,4 +1,15 @@
 <?php
+/**
+ * MoeHome 虚拟主机版 - 首页
+ * 优化版本 v2.0
+ *
+ * 性能优化:
+ * - GZIP 输出压缩
+ * - Etag 缓存
+ * - 优化模板编译
+ * - 减少字符串拼接
+ */
+
 declare(strict_types=1);
 
 error_reporting(E_ALL);
@@ -16,7 +27,7 @@ if (is_file($configFile)) {
 
 ob_start();
 
-$cacheVersion = 'v2.3';
+$cacheVersion = 'v2.0';
 
 $site = $config['site'] ?? [];
 $seo = $config['seo'] ?? [];
@@ -24,7 +35,10 @@ $profile = $config['profile'] ?? [];
 $theme = $config['theme'] ?? [];
 $music = $config['music'] ?? [];
 $terminal = $config['terminal'] ?? [];
-$posts = $config['posts'] ?? [];
+$rss = $config['rss'] ?? [];
+$projects = $config['projects'] ?? [];
+$contribution = $config['contribution'] ?? [];
+$moments = $config['moments'] ?? [];
 $guestbook = $config['guestbook'] ?? [];
 $linksConfig = $config['linksConfig'] ?? [];
 $links = $config['links'] ?? [];
@@ -117,32 +131,82 @@ HTML;
     $musicHtml = '<hr class="section-divider">';
 }
 
-$postsEnabled = (bool)($posts['enabled'] ?? true);
-$postsHtml = '';
+$rssEnabled = (bool)($rss['enabled'] ?? false);
+$rssHtml = '';
 
-if ($postsEnabled) {
-    $postsCount = intval($posts['count'] ?? 4);
-    $postsTitle = htmlspecialchars($posts['title']['text'] ?? '近期更新', ENT_QUOTES, 'UTF-8');
-    $postsIcon = htmlspecialchars($posts['title']['icon'] ?? 'fa-solid fa-newspaper', ENT_QUOTES, 'UTF-8');
+if ($rssEnabled) {
+    $rssUrl = urlencode($rss['url'] ?? '');
+    $rssCount = intval($rss['count'] ?? 4);
+    $rssTitle = htmlspecialchars($rss['title']['text'] ?? 'Recent Posts', ENT_QUOTES, 'UTF-8');
+    $rssIcon = htmlspecialchars($rss['title']['icon'] ?? 'fa-solid fa-newspaper', ENT_QUOTES, 'UTF-8');
+    $rssShowDate = (($rss['display']['showDate'] ?? true) ? 'true' : 'false');
+    $rssShowDesc = (($rss['display']['showDescription'] ?? true) ? 'true' : 'false');
+    $rssMaxDescLen = intval($rss['display']['maxDescriptionLength'] ?? 100);
+    $rssOpenNewTab = (($rss['openInNewTab'] ?? true) ? 'target="_blank" rel="noopener"' : '');
 
-    $postsHtml = <<<HTML
-        <section class="section posts-section lazy-load" data-delay="4">
+    $rssHtml = <<<HTML
+        <section class="section rss-section lazy-load" data-delay="4">
             <div class="section-header">
                 <h2 class="section-title">
-                    <i class="{$postsIcon}"></i>
-                    <span>{$postsTitle}</span>
-                    <a href="posts/" class="view-all" title="查看全部文章">
-                        <span>{$postsCount} posts</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
+                    <i class="{$rssIcon}"></i>
+                    <span>{$rssTitle}</span>
                 </h2>
             </div>
-            <div class="posts-list" id="posts-list" data-count="{$postsCount}">
-                <div class="posts-loading">
+            <div class="rss-list" id="rss-list" data-url="{$rssUrl}" data-count="{$rssCount}" data-show-date="{$rssShowDate}" data-show-description="{$rssShowDesc}" data-max-description-length="{$rssMaxDescLen}" data-open-new-tab="{$rssOpenNewTab}">
+                <div class="rss-loading">
                     <i class="fas fa-spinner fa-spin"></i>
                     <span>加载中...</span>
                 </div>
             </div>
+        </section>
+HTML;
+}
+
+$projectsEnabled = (bool)($projects['enabled'] ?? false);
+$projectsHtml = '';
+$githubUsername = '';
+
+if ($projectsEnabled) {
+    $githubUser = htmlspecialchars($projects['githubUser'] ?? '', ENT_QUOTES, 'UTF-8');
+    $githubUsername = preg_replace('#^https?://github\.com/?#', '', rtrim($githubUser, '/'));
+    $projectsCount = intval($projects['count'] ?? 5);
+    $projectsExclude = htmlspecialchars(implode(',', $projects['exclude'] ?? []), ENT_QUOTES, 'UTF-8');
+    $projectsTitle = htmlspecialchars($projects['title']['text'] ?? '我的项目', ENT_QUOTES, 'UTF-8');
+    $projectsIcon = htmlspecialchars($projects['title']['icon'] ?? 'fa-solid fa-folder-open', ENT_QUOTES, 'UTF-8');
+
+    $projectsHtml = <<<HTML
+        <section class="section projects-section lazy-load" data-delay="5">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="{$projectsIcon}"></i>
+                    <span>{$projectsTitle}</span>
+                </h2>
+                <a href="{$githubUser}" class="section-more" target="_blank" rel="noopener noreferrer">
+                    <span>查看更多</span>
+                    <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>
+            <div class="projects-grid" id="projects-grid" data-username="{$githubUsername}" data-count="{$projectsCount}" data-exclude="{$projectsExclude}">
+                <div class="projects-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>加载中...</span>
+                </div>
+            </div>
+        </section>
+HTML;
+}
+
+$contributionEnabled = (bool)($contribution['enabled'] ?? false);
+$contributionHtml = '';
+
+if ($contributionEnabled) {
+    $contributionUser = htmlspecialchars(($contribution['githubUser'] ?: $githubUsername), ENT_QUOTES, 'UTF-8');
+    $useRealData = (($contribution['useRealData'] ?? true) ? 'true' : 'false');
+    $currentYear = intval(date('Y'));
+
+    $contributionHtml = <<<HTML
+        <section class="section contribution-section">
+            <div class="contribution-calendar" id="contribution-calendar" data-username="{$contributionUser}" data-real="{$useRealData}" data-year="{$currentYear}"></div>
         </section>
 HTML;
 }
@@ -187,7 +251,7 @@ HTML;
     }
 
     $linksHtml = <<<HTML
-        <section class="section links-section lazy-load" data-delay="5">
+        <section class="section links-section lazy-load" data-delay="6">
             <div class="section-header">
                 <h2 class="section-title">
                     <i class="{$linksIcon}"></i>
@@ -235,7 +299,7 @@ HTML;
         } elseif (!empty($method['url'])) {
             $methodUrl = htmlspecialchars($method['url'], ENT_QUOTES, 'UTF-8');
             $methodsHtml .= <<<HTML
-                <a class="donation-method" href="{$methodUrl}" target="_blank" rel="noopener noreferrer" aria-label="{$linkName}">
+                <a class="donation-method" href="{$methodUrl}" target="_blank" rel="noopener noreferrer" aria-label="{$methodName}">
                     <i class="{$methodIcon}"></i>
                     <span>{$methodName}</span>
                 </a>
@@ -244,7 +308,7 @@ HTML;
     }
 
     $donationHtml = <<<HTML
-        <section class="section donation-section lazy-load" data-delay="6">
+        <section class="section donation-section lazy-load" data-delay="7">
             <div class="donation-header">
                 <h2 class="section-title">
                     <i class="{$donationIcon}"></i>
@@ -283,7 +347,7 @@ if ($noticeEnabled) {
     $noticeText = htmlspecialchars($notice['text'] ?? '', ENT_QUOTES, 'UTF-8');
 
     $noticeHtml = <<<HTML
-        <div class="notice notice-{$noticeType} lazy-load" data-delay="7" role="alert">
+        <div class="notice notice-{$noticeType} lazy-load" data-delay="8" role="alert">
             <i class="{$noticeIcon}"></i>
             <span>{$noticeText}</span>
         </div>
@@ -305,7 +369,8 @@ HTML;
 }
 
 $skeletonMusic = $musicEnabled ? '<div class="skeleton-music skeleton"></div>' : '';
-$skeletonPosts = $postsEnabled ? '<div class="skeleton-posts skeleton"></div>' : '';
+$skeletonRss = $rssEnabled ? '<div class="skeleton-rss skeleton"></div>' : '';
+$skeletonProjects = $projectsEnabled ? '<div class="skeleton-projects skeleton"></div>' : '';
 $skeletonLinks = $linksEnabled ? '<div class="skeleton-links skeleton"></div>' : '';
 $skeletonDonation = $donationEnabled ? '<div class="skeleton-donation skeleton"></div>' : '';
 $skeletonNotice = $noticeEnabled ? '<div class="skeleton-notice skeleton"></div>' : '';
@@ -357,6 +422,17 @@ $icpNumber = $icpEnabled ? htmlspecialchars($footer['icp']['number'] ?? '', ENT_
 $copyrightYear = htmlspecialchars(($footer['copyright']['year'] ?? date('Y')), ENT_QUOTES, 'UTF-8');
 $copyrightName = htmlspecialchars(($footer['copyright']['name'] ?? $siteName), ENT_QUOTES, 'UTF-8');
 $copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTES, 'UTF-8');
+
+$momentsNavHtml = '';
+$guestbookNavHtml = '';
+
+if ($moments['enabled'] ?? false) {
+    $momentsNavHtml = '<a href="moments.php" class="nav-link">动态</a>';
+}
+
+if ($guestbook['enabled'] ?? false) {
+    $guestbookNavHtml = '<a href="guestbook.php" class="nav-link">留言</a>';
+}
 ?>
 <!doctype html>
 <html lang="zh-CN" data-theme="<?php echo $themeDefault; ?>" data-scheme="<?php echo $themeDefaultSchemeData; ?>">
@@ -373,15 +449,11 @@ $copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTE
         <meta property="og:title" content="<?php echo $ogTitle; ?>" />
         <meta property="og:description" content="<?php echo $ogDescription; ?>" />
         <meta property="og:image" content="<?php echo $ogImg; ?>" />
-        <meta property="og:url" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? ''); ?>" />
-        <meta property="og:site_name" content="<?php echo $siteName; ?>" />
-        <meta property="og:locale" content="zh_CN" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="<?php echo $ogTitle; ?>" />
-        <meta name="twitter:description" content="<?php echo $ogDescription; ?>" />
-        <meta name="twitter:image" content="<?php echo $ogImg; ?>" />
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:title" content="<?php echo $ogTitle; ?>" />
+        <meta property="twitter:description" content="<?php echo $ogDescription; ?>" />
+        <meta property="twitter:image" content="<?php echo $ogImg; ?>" />
 
-        <link rel="canonical" href="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? ''); ?>" />
         <link rel="icon" type="image/webp" href="<?php echo $avatar; ?>" />
 
         <?php echo $themeInitScript; ?>
@@ -423,7 +495,8 @@ $copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTE
                 </a>
                 <div class="navbar-menu" id="navbar-menu">
                     <a href="index.php" class="nav-link active">首页</a>
-                    <a href="posts/" class="nav-link">博客</a>
+                    <?php echo $momentsNavHtml; ?>
+                    <?php echo $guestbookNavHtml; ?>
                 </div>
                 <div class="navbar-actions">
                     <button class="nav-theme-toggle" id="theme-toggle" aria-label="切换主题">
@@ -454,7 +527,8 @@ $copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTE
 
         <div class="nav-mobile-dropdown" id="nav-mobile-dropdown">
             <a href="index.php" class="nav-link active">首页</a>
-            <a href="posts/" class="nav-link">博客</a>
+            <?php echo $momentsNavHtml; ?>
+            <?php echo $guestbookNavHtml; ?>
         </div>
 
         <div class="container">
@@ -465,7 +539,8 @@ $copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTE
                 <div class="skeleton-tagline skeleton"></div>
                 <?php echo $skeletonMusic; ?>
                 <div class="skeleton-terminal skeleton"></div>
-                <?php echo $skeletonPosts; ?>
+                <?php echo $skeletonRss; ?>
+                <?php echo $skeletonProjects; ?>
                 <?php echo $skeletonLinks; ?>
                 <?php echo $skeletonDonation; ?>
                 <?php echo $skeletonNotice; ?>
@@ -513,13 +588,15 @@ $copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTE
                         <?php echo $gearHtml; ?>
                         <div class="prompt-line" style="margin-top: 8px;">
                             <span class="prompt">$ </span>
-                            <span class="command">cat quotes.txt</span>
+                            <span class="command">./wisdom.sh</span>
                         </div>
                         <div class="output" id="quote-output" data-value='<?php echo $quotesJson; ?>' aria-live="polite" aria-label="Quotes"><span class="cursor-blink" aria-hidden="true"></span></div>
                     </div>
                 </div>
 
-                <?php echo $postsHtml; ?>
+                <?php echo $contributionHtml; ?>
+                <?php echo $rssHtml; ?>
+                <?php echo $projectsHtml; ?>
                 <?php echo $linksHtml; ?>
                 <?php echo $donationHtml; ?>
                 <?php echo $noticeHtml; ?>
@@ -546,7 +623,6 @@ $copyrightUrl = htmlspecialchars(($footer['copyright']['url'] ?? '#'), ENT_QUOTE
         <script src="theme-data.js" defer></script>
         <script src="theme-utils.js" defer></script>
         <script src="app.js" defer></script>
-        <script src="posts.js" defer></script>
     </body>
 </html>
 <?php

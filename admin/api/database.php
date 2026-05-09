@@ -813,23 +813,6 @@ function installDatabase(): bool {
         INDEX `idx_email` (`email`),
         INDEX `idx_token` (`token`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-    CREATE TABLE IF NOT EXISTS `moehome_posts` (
-        `id` INT AUTO_INCREMENT PRIMARY KEY,
-        `title` VARCHAR(255) NOT NULL,
-        `slug` VARCHAR(255) NOT NULL UNIQUE,
-        `content` LONGTEXT NOT NULL,
-        `excerpt` TEXT,
-        `category` VARCHAR(50) DEFAULT 'default',
-        `tags` JSON DEFAULT '[]',
-        `status` ENUM('draft', 'published') DEFAULT 'draft',
-        `author_id` INT NOT NULL,
-        `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-        `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX `idx_status` (`status`),
-        INDEX `idx_category` (`category`),
-        INDEX `idx_created_at` (`created_at`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     ";
 
     try {
