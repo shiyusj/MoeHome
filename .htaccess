@@ -1,0 +1,119 @@
+# MoeHome 虚拟主机版 Apache 配置
+# 将此文件放在网站根目录
+
+# 启用 URL 重写
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # 强制使用 HTTPS (如果需要)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # 路由规则 - 支持 SPA 路由
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^moments/?$ /moments.html [L,QSA]
+    RewriteRule ^guestbook/?$ /guestbook.html [L,QSA]
+
+    # 隐藏 .html 扩展名 (可选)
+    # RewriteCond %{REQUEST_FILENAME} !-f
+    # RewriteCond %{REQUEST_FILENAME} !-d
+    # RewriteRule ^([^\.]+)$ $1.html [NC,L]
+</IfModule>
+
+# 安全头部
+<IfModule mod_headers.c>
+    # 防止 MIME 类型 sniffing
+    Header set X-Content-Type-Options "nosniff"
+
+    # XSS 防护
+    Header set X-XSS-Protection "1; mode=block"
+
+    # 防止页面被 iframe 嵌入
+    Header set X-Frame-Options "SAMEORIGIN"
+
+    # 启用 CORS (如果需要)
+    Header set Access-Control-Allow-Origin "*"
+</IfModule>
+
+# PHP 配置 (根据虚拟主机支持情况调整)
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 12M
+    php_value max_execution_time 60
+    php_value memory_limit 128M
+</IfModule>
+
+<IfModule mod_php.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 12M
+    php_value max_execution_time 60
+    php_value memory_limit 128M
+</IfModule>
+
+# 缓存策略
+<IfModule mod_expires.c>
+    ExpiresActive On
+
+    # 图片资源 - 缓存一年
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+
+    # CSS/JS - 缓存一周
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+    ExpiresByType text/javascript "access plus 1 week"
+
+    # 字体 - 缓存一年
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/ttf "access plus 1 year"
+
+    # HTML - 不缓存
+    ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+# GZIP 压缩
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE image/svg+xml
+    AddOutputFilterByType DEFLATE font/woff2
+    AddOutputFilterByType DEFLATE font/woff
+</IfModule>
+
+# 禁止访问敏感文件
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "\.(config\.php|config\.example\.php|htaccess|htpasswd|sql|log)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 禁止访问 API 目录直接访问 (如果需要)
+# <Directory "api/cache">
+#     Order deny,allow
+#     Deny from all
+# </Directory>
+
+# 禁止目录浏览
+Options -Indexes
+
+# 设置默认字符集
+AddDefaultCharset UTF-8
+AddCharset UTF-8 .html .css .js .xml .json
+
+# 自定义错误页面
+ErrorDocument 404 /404.html
+ErrorDocument 500 /500.html
